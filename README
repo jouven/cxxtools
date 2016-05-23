@@ -1,16 +1,17 @@
-Cxxtools
-========
+A fork of https://github.com/maekitalo/cxxtools with "changes" to allow cross compile with mingw.
 
-cxxtools is my toolbox with reusable c++-components
+Requires https://github.com/dlfcn-win32/dlfcn-win32
 
-see INSTALL for installation-instructions
+To compile the library follow the same steps as the regular cxxtools, but on the configure step use this line as a base (check your distro/mingw installation calls first):
 
+./configure --host=x86_64-w64-mingw32 CXX=x86_64-w64-mingw32-g++-posix CC=x86_64-w64-mingw32-gcc-5.3-posix
 
-Installation from GIT
-=====================
+Caveats:
+1. Don't expect anything that uses POSIX stuff (pipes, sockets...) to work.
+2. The regex header/code uses <regex.h> (POSIX), I've attempted to modify it so it uses C++11 regex but I haven't tried/tested the changes at all, it just compiles.
+3. The previous caveat adds the requirement of C++11 support to compile.
+4. I've barely tested it, as far as I know it compiles, links and the programs run. I've only tried the JSON serialization/deserialization on wine/wine64/windows 7, which does work alright.
 
-In the GIT-repository there is no configure-script, but configure.ac,
-which is the source for configure. You need autoconf and automake to
-create configure. 
-
-Run `autoreconf -i` to generate a configure script.
+Warnings:
+1. When installing, if you install "make install", remember to change the installation location so the files install on the mingw folders or you might overwrite your regular cxxtools.
+2. Remember that in *n*x you can rpath the locations of your libraries, but that doesn't work with mingw32/windows, still, other options like adding the library path to your PATH environment variable, copying the library files to the same folder or using soft links work too.
