@@ -1,12 +1,12 @@
 /*
  * Copyright (C) 2006-2007 Laurentiu-Gheorghe Crisan
  * Copyright (C) 2006-2007 Marc Boris Duerner
- * 
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2.1 of the License, or (at your option) any later version.
- * 
+ *
  * As a special exception, you may use this file as part of a free
  * software library without restriction. Specifically, if other files
  * instantiate templates or use macros or inline functions from this
@@ -16,12 +16,12 @@
  * License. This exception does not however invalidate any other
  * reasons why the executable file might be covered by the GNU Library
  * General Public License.
- * 
+ *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
@@ -34,7 +34,15 @@
 #include <unistd.h>
 #include <string.h>
 #include <fcntl.h>
+#ifdef __MINGW32__
+#include "fcntlMingw.h"
+#include "fsync.h"
+#define WIN32_LEAN_AND_MEAN
+#include <mswsock.h>
+#else
 #include <sys/poll.h>
+#endif
+
 #include <cxxtools/log.h>
 #include <cxxtools/hdstream.h>
 
@@ -82,14 +90,21 @@ void IODeviceImpl::open(const std::string& path, IODevice::OpenMode mode, bool i
     {
         flags |= O_RDONLY;
     }
-
+    #ifdef __MINGW32__
+    if(mode & IODevice::Async)
+       flags |= FIONBIO;
+    #else
     if(mode & IODevice::Async)
         flags |= O_NONBLOCK;
-
+    #endif
     if(mode & IODevice::Trunc)
         flags |= O_TRUNC;
 
+    #ifdef __MINGW32__
+    flags |= 0;
+    #else
     flags |=  O_NOCTTY;
+    #endif
 
     _fd = ::open( path.c_str(), flags );
     if(_fd == -1)
@@ -110,7 +125,7 @@ void IODeviceImpl::open(const std::string& path, IODevice::OpenMode mode, bool i
 void IODeviceImpl::open(int fd, bool isAsync, bool inherit)
 {
     _fd = fd;
-
+    #ifndef __MINGW32__
     if (isAsync)
     {
         int flags = fcntl(_fd, F_GETFL);
@@ -119,7 +134,7 @@ void IODeviceImpl::open(int fd, bool isAsync, bool inherit)
         if(-1 == ret)
             throw IOError(getErrnoString("Could not set fd to non-blocking"));
     }
-
+    #endif
     if (!inherit)
     {
         int flags = fcntl(_fd, F_GETFD);
@@ -326,7 +341,11 @@ void IODeviceImpl::cancel()
 
 void IODeviceImpl::sync() const
 {
+    #ifdef __MINGW32__
     int ret = fsync(_fd);
+    #else
+    int ret = fsync(_fd);
+    #endif
     if(ret != 0)
         throw IOError(getErrnoString("Could not sync handle"));
 }
@@ -370,7 +389,11 @@ bool IODeviceImpl::wait(Timespan timeout, pollfd& pfd)
     int ret = -1;
     do
     {
+        #ifdef __MINGW32__
+        ret = WSAPoll(&pfd, 1, msecs);
+        #else
         ret = ::poll(&pfd, 1, msecs);
+        #endif
     } while (ret == -1 && errno == EINTR);
 
     if (ret == -1)

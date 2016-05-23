@@ -32,8 +32,14 @@
 #include <cxxtools/log.h>
 #include <cxxtools/systemerror.h>
 #include <cxxtools/net/tcpserver.h>
-#include <netdb.h>
-#include <sys/poll.h>
+#ifdef __MINGW32__
+  #define WIN32_LEAN_AND_MEAN
+  #include <winsock2.h>
+#else
+  #include <netdb.h>
+  #include <sys/poll.h>
+#endif
+
 #include <vector>
 #include <errno.h>
 #include <string.h>
@@ -76,7 +82,11 @@ namespace net
       if (bcast)
       {
         const int on = 1;
-        if (::setsockopt(getFd(), SOL_SOCKET, SO_BROADCAST, &on, sizeof(on)) < 0)
+	#ifdef __MINGW32__
+        if (::setsockopt(getFd(), SOL_SOCKET, SO_BROADCAST,(const char*) &on, sizeof(on)) < 0)
+	#else
+	if (::setsockopt(getFd(), SOL_SOCKET, SO_BROADCAST, &on, sizeof(on)) < 0)
+	#endif
           throw SystemError("setsockopt");
       }
 
@@ -92,7 +102,11 @@ namespace net
 
   UdpSender::size_type UdpSender::send(const void* message, size_type length, int flags) const
   {
+    #ifdef __MINGW32__
+    ssize_t ret = ::send(getFd(), (const char*)message, length, flags);
+    #else
     ssize_t ret = ::send(getFd(), message, length, flags);
+    #endif
     if (ret < 0)
       throw SystemError("send");
     return static_cast<size_type>(ret);
@@ -107,7 +121,11 @@ namespace net
   UdpSender::size_type UdpSender::recv(void* buffer, size_type length,
     int flags) const
   {
+    #ifdef __MINGW32__
+    ssize_t ret = ::recv(getFd(), (char*) buffer, length, flags);
+    #else
     ssize_t ret = ::recv(getFd(), buffer, length, flags);
+    #endif
 
     if (ret < 0 && errno == EAGAIN)
     {
@@ -115,8 +133,11 @@ namespace net
         throw IOTimeout();
 
       poll(POLLIN);
-
+      #ifdef __MINGW32__
+      ret = ::recv(getFd(),(char*)buffer, length, flags);
+      #else
       ret = ::recv(getFd(), buffer, length, flags);
+      #endif
     }
 
     if (ret < 0)
@@ -163,8 +184,13 @@ namespace net
       }
 
       log_debug("setsockopt");
+      #ifdef __MINGW32__
+      if (::setsockopt(getFd(), SOL_SOCKET, SO_REUSEADDR,
+          (const char*)&reuseAddr, sizeof(reuseAddr)) < 0)
+      #else
       if (::setsockopt(getFd(), SOL_SOCKET, SO_REUSEADDR,
           &reuseAddr, sizeof(reuseAddr)) < 0)
+      #endif
         throw SystemError(errno, "setsockopt");
 
       log_debug("bind ip " << ipaddr << " port " << port);
@@ -182,8 +208,11 @@ namespace net
   UdpReceiver::size_type UdpReceiver::recv(void* buffer, size_type length, int flags)
   {
     log_debug("recvfrom");
-
+    #ifdef __MINGW32__
+    ssize_t ret = ::recvfrom(getFd(), (char*)buffer, length, flags, reinterpret_cast <struct sockaddr *> (&peeraddr), &peeraddrLen);
+    #else
     ssize_t ret = ::recvfrom(getFd(), buffer, length, flags, reinterpret_cast <struct sockaddr *> (&peeraddr), &peeraddrLen);
+    #endif
 
     if (ret < 0 && errno == EAGAIN)
     {
@@ -191,8 +220,11 @@ namespace net
         throw IOTimeout();
 
       poll(POLLIN);
-
+      #ifdef __MINGW32__
+      ret = ::recvfrom(getFd(), (char*)buffer, length, flags, reinterpret_cast <struct sockaddr *> (&peeraddr), &peeraddrLen);
+      #else
       ret = ::recvfrom(getFd(), buffer, length, flags, reinterpret_cast <struct sockaddr *> (&peeraddr), &peeraddrLen);
+      #endif
     }
 
     if (ret < 0)
@@ -210,7 +242,11 @@ namespace net
 
   UdpReceiver::size_type UdpReceiver::send(const void* message, size_type length, int flags) const
   {
+    #ifdef __MINGW32__
+    ssize_t ret = ::sendto(getFd(), (const char*)message, length, flags, reinterpret_cast <const struct sockaddr *> (&peeraddr), peeraddrLen);
+    #else
     ssize_t ret = ::sendto(getFd(), message, length, flags, reinterpret_cast <const struct sockaddr *> (&peeraddr), peeraddrLen);
+    #endif
     if (ret < 0)
       throw SystemError("sendto");
     return static_cast<size_type>(ret);

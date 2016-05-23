@@ -24,8 +24,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "clockimpl.h"
-#include <sys/time.h>
 #include <time.h>
+#ifdef __MINGW32__
+#else
+  #include <sys/time.h>
+#endif
 
 namespace cxxtools
 {
@@ -56,14 +59,22 @@ Timespan ClockImpl::stop() const
     clock_gettime(CLOCK_MONOTONIC, &stopTime);
 
     time_t secs = stopTime.tv_sec - _startTime.tv_sec;
+#ifdef __MINGW32__
+    auto usecs = (stopTime.tv_nsec - _startTime.tv_nsec) / 1000;
+#else
     suseconds_t usecs = (stopTime.tv_nsec - _startTime.tv_nsec) / 1000;
+#endif
 #else
     struct timeval stopTime;
 
     gettimeofday( &stopTime, 0 );
 
     time_t secs = stopTime.tv_sec - _startTime.tv_sec;
+#ifdef __MINGW32__
+    auto usecs = stopTime.tv_usec - _startTime.tv_usec;
+#else
     suseconds_t usecs = stopTime.tv_usec - _startTime.tv_usec;
+#endif
 #endif
 
     return Timespan(secs, usecs);
@@ -77,7 +88,11 @@ DateTime ClockImpl::getSystemTime()
 
     struct tm tim;
     time_t sec = tod.tv_sec;
+#ifdef __MINGW32__
+    gmtime_s(&tim, &sec);
+#else
     gmtime_r(&sec, &tim);
+#endif
 
     return DateTime( tim.tm_year + 1900,
                      tim.tm_mon + 1,
@@ -97,7 +112,11 @@ DateTime ClockImpl::getLocalTime()
 
     struct tm tim;
     time_t sec = tod.tv_sec;
+#ifdef __MINGW32__
+    localtime_s(&tim, &sec);
+#else
     localtime_r(&sec, &tim);
+#endif
 
     return DateTime( tim.tm_year + 1900,
                      tim.tm_mon + 1,

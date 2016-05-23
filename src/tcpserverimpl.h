@@ -34,7 +34,13 @@
 #include <string>
 #include <vector>
 #include <sys/types.h>
-#include <sys/socket.h>
+#ifdef __MINGW32__
+  #define WIN32_LEAN_AND_MEAN
+  #include <winsock2.h>
+  #include <ws2tcpip.h>
+#else
+  #include <sys/socket.h>
+#endif
 #include "config.h"
 
 namespace cxxtools

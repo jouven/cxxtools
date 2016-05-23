@@ -88,8 +88,12 @@ cxxtools-config
 *.o
 *.pc
 *.swp
+*.exe
+*.dll
 
 # Other
 
 *~
 .dirstamp
+
+installfolder/*

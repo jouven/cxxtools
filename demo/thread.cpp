@@ -33,6 +33,7 @@
 #include <iostream>
 #include <string>
 #include <unistd.h>
+#include <sys/time.h>
 
 cxxtools::Mutex coutMutex;
 cxxtools::Mutex conditionMutex;

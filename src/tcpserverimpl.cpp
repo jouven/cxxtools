@@ -40,7 +40,14 @@
 #include <cerrno>
 #include <cassert>
 #include <cstring>
-#include <sys/poll.h>
+#ifdef __MINGW32__
+  #define WIN32_LEAN_AND_MEAN
+  #include <io.h>
+  #include <winsock2.h>
+  #include "fcntlMingw.h"
+#else
+  #include <sys/poll.h>
+#endif
 #include <unistd.h>
 #include <fcntl.h>
 #include <limits>
@@ -49,12 +56,20 @@
 #ifdef HAVE_TCP_DEFER_ACCEPT
 #  include <netinet/tcp.h>
 #  include <sys/types.h>
-#  include <sys/socket.h>
+#ifdef __MINGW32__
+  //#include <winsock2.h>
+#else
+  #include <sys/socket.h>
+#endif
 #endif
 
 #ifdef HAVE_SO_NOSIGPIPE
 #  include <sys/types.h>
-#  include <sys/socket.h>
+#ifdef __MINGW32__
+  //#include <winsock2.h>
+#else
+  #include <sys/socket.h>
+#endif
 #endif
 
 log_define("cxxtools.net.tcpserver.impl")
@@ -75,7 +90,11 @@ TcpServerImpl::TcpServerImpl(TcpServer& server)
   , _deferAccept(false)
 #endif
 {
+    #ifdef __MINGW32__
+    int ret = _pipe(_wakePipe, 32, O_BINARY);
+    #else
     int ret = ::pipe(_wakePipe);
+    #endif
     if (ret == 1)
         throwSystemError("pipe");
     log_debug("wake pipe read fd=" << _wakePipe[0] << " write fd=" << _wakePipe[1]);
@@ -145,7 +164,11 @@ void TcpServerImpl::listen(const std::string& ipaddr, unsigned short int port, i
             if (flags & TcpServer::REUSEADDR)
             {
                 log_debug("setsockopt SO_REUSEADDR");
+                #ifdef __MINGW32__
+                if (::setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (const char*)&on, sizeof(on)) < 0)
+                #else
                 if (::setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0)
+                #endif
                 {
                     log_debug("could not set socket option SO_REUSEADDR " << fd << ": " << getErrnoString());
                     throwSystemError("setsockopt");
@@ -278,7 +301,11 @@ bool TcpServerImpl::wait(Timespan timeout)
 
     while (true)
     {
+        #ifdef __MINGW32__
+        int p = WSAPoll(&fds[0], fds.size(), msecs);
+        #else
         int p = ::poll(&fds[0], fds.size(), msecs);
+        #endif
         if (p > 0)
         {
             break;
@@ -378,7 +405,11 @@ int TcpServerImpl::accept(int flags, struct sockaddr* sa, socklen_t& sa_len)
         while (true)
         {
             log_debug("poll");
+            #ifdef __MINGW32__
+            int p = WSAPoll(&fds[0], fds.size(), -1);
+            #else
             int p = ::poll(&fds[0], fds.size(), -1);
+            #endif
             if (p > 0)
             {
                 break;

@@ -38,10 +38,18 @@ namespace cxxtools
 namespace
 {
     // XSI compliant strerror_r
+#ifdef __MINGW32__
+    inline void errorOut(int (*errfn)(char*, size_t, int), std::ostream& out, int errnum)
+#else
     inline void errorOut(int (*errfn)(int, char*, size_t), std::ostream& out, int errnum)
+#endif
     {
         std::vector<char> buffer(512);
+#ifdef __MINGW32__
+        while (errfn(&buffer[0], buffer.size(), errnum) != 0)
+#else
         while (errfn(errnum, &buffer[0], buffer.size()) != 0)
+#endif
         {
             if (errno != ERANGE)
             {
@@ -56,12 +64,20 @@ namespace
     }
 
     // GNU specific strerror_r
+#ifdef __MINGW32__
+    inline void errorOut(char* (*errfn)(char*, size_t, int), std::ostream& out, int errnum)
+#else
     inline void errorOut(char* (*errfn)(int, char*, size_t), std::ostream& out, int errnum)
+#endif
     {
         std::vector<char> buffer(512);
         while (true)
         {
+#ifdef __MINGW32__
+            char* f = errfn(&buffer[0], buffer.size(), errnum);
+#else
             char* f = errfn(errnum, &buffer[0], buffer.size());
+#endif
             if (f != &buffer[0])
             {
                 out << f;
@@ -79,7 +95,11 @@ namespace
 
     inline void errorOut(std::ostream& out, int errnum)
     {
-      errorOut(strerror_r, out, errnum);
+#ifdef __MINGW32__
+        errorOut(strerror_s, out, errnum);
+#else
+        errorOut(strerror_r, out, errnum);
+#endif
     }
 }
 

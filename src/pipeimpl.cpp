@@ -31,6 +31,10 @@
 #include "cxxtools/systemerror.h"
 #include <unistd.h>
 #include <fcntl.h>
+#ifdef __MINGW32__
+#define WIN32_LEAN_AND_MEAN
+#include <io.h>
+#endif
 
 namespace cxxtools {
 
@@ -129,7 +133,11 @@ void PipeIODevice::onSync() const
 PipeImpl::PipeImpl(bool isAsync)
 {
     int fds[2];
+    #ifdef __MINGW32__
+    if(-1 == _pipe(fds, 32, O_BINARY) )
+    #else
     if(-1 == ::pipe(fds) )
+    #endif
         throw SystemError("pipe");
 
     _out.open( fds[0], isAsync );

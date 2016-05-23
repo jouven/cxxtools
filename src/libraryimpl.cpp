@@ -26,6 +26,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "libraryimpl.h"
+#ifdef __MINGW32__
+#include <exception>
+#define RTLD_LAZY 1
+
+#define RTLD_NOW 2
+
+#define RTLD_GLOBAL 4
+#endif
 
 namespace cxxtools {
 
@@ -40,10 +48,18 @@ void LibraryImpl::open(const std::string& path)
     */
     int flags = RTLD_NOW | RTLD_GLOBAL;
 
+    #ifdef __MINGW32__
+    _handle = ::LoadLibrary(path.c_str());
+    #else
     _handle = ::dlopen(path.c_str(), flags);
+    #endif
     if( !_handle )
     {
+        #ifdef __MINGW32__
+        throw std::runtime_error("Mingw porting, Not implemented yet.");
+        #else
         throw OpenLibraryFailed(dlerror());
+        #endif
     }
 }
 
@@ -51,7 +67,13 @@ void LibraryImpl::open(const std::string& path)
 void LibraryImpl::close()
 {
     if(_handle)
-        ::dlclose(_handle);
+    {
+       #ifdef __MINGW32__
+       FreeLibrary(_handle);
+       #else
+       ::dlclose(_handle);
+       #endif
+    }
 }
 
 
@@ -59,7 +81,11 @@ void* LibraryImpl::resolve(const char* symbol) const
 {
     if(_handle)
     {
+        #ifdef __MINGW32__
+        return (void *)GetProcAddress(_handle, symbol);
+        #else
         return ::dlsym(_handle, symbol);
+        #endif
     }
 
     return 0;

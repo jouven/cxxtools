@@ -30,7 +30,11 @@
 #define CXXTOOLS_FORK_H
 
 #include <sys/types.h>
+#ifdef __MINGW32__
+#include <exception>
+#else
 #include <sys/wait.h>
+#endif
 #include <unistd.h>
 #include <cxxtools/systemerror.h>
 
@@ -84,7 +88,11 @@ namespace cxxtools
 
         void fork()
         {
+          #ifdef __MINGW32__
+          throw std::runtime_error("Mingw porting, Not implemented yet.");
+          #else
           pid = ::fork();
+          #endif
           if (pid < 0)
             throw SystemError("fork");
         }
@@ -96,7 +104,11 @@ namespace cxxtools
         int wait(int options = 0)
         {
           int status;
+          #ifdef __MINGW32__
+          throw std::runtime_error("Mingw porting, Not implemented yet.");
+          #else
           ::waitpid(pid, &status, options);
+          #endif
           pid = 0;
           return status;
         }

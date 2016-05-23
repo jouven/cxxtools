@@ -37,6 +37,11 @@
 #include <errno.h>
 #include <stdio.h>
 
+#ifdef __MINGW32__
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
+
 #include "config.h"
 
 #if defined(HAVE_SENDFILE) && defined(HAVE_SYS_SENDFILE_H)
@@ -163,14 +168,22 @@ void FileImpl::move(const std::string& path, const std::string& to)
 
 void FileImpl::link(const std::string& path, const std::string& to)
 {
+    #ifdef __MINGW32__
+    if( 0 != CreateHardLink(path.c_str(), to.c_str(), NULL) )
+    #else
     if( 0 != ::link(path.c_str(), to.c_str()) )
+    #endif
         throwFileErrno("link", path);
 }
 
 
 void FileImpl::symlink(const std::string& path, const std::string& to)
 {
+    #ifdef __MINGW32__
+    if( 0 != CreateSymbolicLink(path.c_str(), to.c_str(), 0) )
+    #else
     if( 0 != ::symlink(path.c_str(), to.c_str()) )
+    #endif
         throwFileErrno("symlink", path);
 }
 

@@ -33,12 +33,21 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <sys/poll.h>
+#ifdef __MINGW32__
+  #include "fcntlMingw.h"
+  #define WIN32_LEAN_AND_MEAN
+  #include "mswsock.h"
+#else
+  #include <sys/poll.h>
+#endif
 #include <stdio.h>
 #include <string.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
+#ifndef __MINGW32__
+  #include <sys/socket.h>
+  #include <netinet/in.h>
+  #include <arpa/inet.h>
+#endif
+
 #include "config.h"
 
 log_define("cxxtools.net.net")
@@ -131,7 +140,11 @@ namespace net
 
     log_debug("poll timeout " << getTimeout());
 
+    #ifdef __MINGW32__
+    int p = WSAPoll(&fds, 1, getTimeout());
+    #else
     int p = ::poll(&fds, 1, getTimeout());
+    #endif
 
     log_debug("poll returns " << p << " revents " << fds.revents);
 

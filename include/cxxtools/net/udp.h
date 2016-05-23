@@ -30,8 +30,14 @@
 #define CXXTOOLS_NET_UDP_H
 
 #include <cxxtools/net/net.h>
+#ifdef __MINGW32__
+#define WIN32_LEAN_AND_MEAN
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else
 #include <netinet/in.h>
 #include <sys/socket.h>
+#endif
 #include <sys/types.h>
 
 namespace cxxtools

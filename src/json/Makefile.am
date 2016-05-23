@@ -28,5 +28,5 @@ libcxxtools_json_la_SOURCES = \
 
 libcxxtools_json_la_LIBADD = $(top_builddir)/src/libcxxtools.la $(top_builddir)/src/http/libcxxtools-http.la
 
-libcxxtools_json_la_LDFLAGS = -version-info @sonumber@ @SHARED_LIB_FLAG@
+libcxxtools_json_la_LDFLAGS = -lws2_32 -no-undefined -version-info @sonumber@ @SHARED_LIB_FLAG@
 

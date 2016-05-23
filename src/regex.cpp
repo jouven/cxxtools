@@ -39,17 +39,12 @@ namespace cxxtools
 {
   unsigned RegexSMatch::size() const
   {
-    unsigned n;
-    for (n = 0; n < 10 && matchbuf[n].rm_so >= 0; ++n)
-      ;
-
-    return n;
+    return matchbuf.size();
   }
 
   std::string RegexSMatch::get(unsigned n) const
   {
-    return has(n) ? str.substr(matchbuf[n].rm_so,
-                               matchbuf[n].rm_eo - matchbuf[n].rm_so)
+    return has(n) ? matchbuf[n]
                   : std::string();
   }
 
@@ -89,10 +84,10 @@ namespace cxxtools
           if (std::isdigit(ch))
           {
             ret = std::string(s.begin(), it - 1);
-            regoff_t b = matchbuf[ch - '0'].rm_so;
-            regoff_t e = matchbuf[ch - '0'].rm_eo;
-            if (b >= 0 && e >= 0)
-              ret.append(str, b, e-b);
+            //auto b = matchbuf[ch - '0'].rm_so;
+            //auto e = matchbuf[ch - '0'].rm_eo;
+            //if (b >= 0 && e >= 0)
+              ret.append(matchbuf[ch - '0']);
             state = state_1;
           }
           else
@@ -111,10 +106,10 @@ namespace cxxtools
         case state_var1:
           if (std::isdigit(ch))
           {
-            regoff_t b = matchbuf[ch - '0'].rm_so;
-            regoff_t e = matchbuf[ch - '0'].rm_eo;
-            if (b >= 0 && e >= 0)
-              ret.append(str, b, e-b);
+            //regoff_t b = matchbuf[ch - '0'].rm_so;
+            //regoff_t e = matchbuf[ch - '0'].rm_eo;
+            //if (b >= 0 && e >= 0)
+              ret.append(matchbuf[ch - '0']);
             state = state_1;
           }
           else if (ch == '$')
@@ -148,15 +143,15 @@ namespace cxxtools
     return ret;
   }
 
-  void Regex::checkerr(int ret) const
-  {
-    if (ret != 0)
-    {
-      char errbuf[256];
-      regerror(ret, expr.getPointer(), errbuf, sizeof(errbuf));
-      throw std::runtime_error(errbuf);
-    }
-  }
+  //void Regex::checkerr(int ret) const
+  //{
+  //  if (ret != 0)
+  //  {
+  //    char errbuf[256];
+  //    regerror(ret, expr.getPointer(), errbuf, sizeof(errbuf));
+  //    throw std::runtime_error(errbuf);
+  //  }
+  //}
 
   bool Regex::matchp(const std::string& str_, std::string::size_type p, int eflags) const
   {
@@ -168,30 +163,29 @@ namespace cxxtools
   {
     if (expr.getPointer() == 0)
     {
-      smatch.matchbuf[0].rm_so = 0;
-      return true;
+      return smatch.matchbuf.empty();
     }
 
     smatch.str = str_;
-    int ret = regexec(expr.getPointer(), str_.c_str() + p,
-        sizeof(smatch.matchbuf) / sizeof(regmatch_t), smatch.matchbuf, eflags);
+    auto substrTmp(str_.substr(p));
+    auto ret = std::regex_search(substrTmp, smatch.matchbuf, *expr);
 
-    if (ret == REG_NOMATCH)
+    if (!ret)
       return false;
 
-    checkerr(ret);
+    //checkerr(ret);
 
-    if (p > 0)
-    {
-      for (unsigned n = 0; n < 10; ++n)
-      {
-        if (smatch.matchbuf[n].rm_so >= 0)
-        {
-          smatch.matchbuf[n].rm_so += p;
-          smatch.matchbuf[n].rm_eo += p;
-        }
-      }
-    }
+    //if (p > 0)
+    //{
+    //  for (unsigned n = 0; n < smatch.matchbuf.size(); ++n)
+    //  {
+    //    if (!smatch.matchbuf[n].empty())
+    //   {
+    //      smatch.matchbuf[n].rm_so += p;
+    //      smatch.matchbuf[n].rm_eo += p;
+    //    }
+    //  }
+    //}
 
     return true;
   }

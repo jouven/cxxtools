@@ -37,5 +37,5 @@ noinst_HEADERS = \
 
 libcxxtools_http_la_LIBADD = $(top_builddir)/src/libcxxtools.la
 
-libcxxtools_http_la_LDFLAGS = -version-info @sonumber@ @SHARED_LIB_FLAG@
+libcxxtools_http_la_LDFLAGS = -lws2_32 -no-undefined -version-info @sonumber@ @SHARED_LIB_FLAG@
 

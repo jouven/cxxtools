@@ -40,7 +40,15 @@
 #include <iostream>
 #include <limits>
 #include "config.h"
+#ifdef __MINGW32__
+#include "fsync.h"
+#include "fcntlMingw.h"
+#define WIN32_LEAN_AND_MEAN
+#include <io.h>
+#include <windows.h>
+#else
 #include "poll.h"
+#endif
 
 log_define("cxxtools.selector.impl")
 
@@ -55,22 +63,41 @@ SelectorImpl::SelectorImpl()
     _current = _devices.end();
 
     //Open a pipe to send wake up message.
+    #ifdef __MINGW32__
+    if( _pipe( _wakePipe, 32, O_BINARY ) )
+    #else
     if( ::pipe( _wakePipe ) )
+    #endif
         throwSystemError("pipe");
 
+    #ifdef __MINGW32__
+    int flags = fcntl(_wakePipe[0], F_GETFL);
+    #else
     int flags = ::fcntl(_wakePipe[0], F_GETFL);
+    #endif
     if(-1 == flags)
         throwSystemError("fcntl");
 
+    #ifdef __MINGW32__
+    int ret = fcntl(_wakePipe[0], F_SETFL, flags|O_NONBLOCK);
+    #else
     int ret = ::fcntl(_wakePipe[0], F_SETFL, flags|O_NONBLOCK);
+    #endif
     if(-1 == ret)
         throwSystemError("fcntl");
 
+    #ifdef __MINGW32__
+    flags = fcntl(_wakePipe[1], F_GETFL);
+    #else
     flags = ::fcntl(_wakePipe[1], F_GETFL);
+    #endif
     if(-1 == flags)
         throwSystemError("fcntl");
-
+    #ifdef __MINGW32__
+    ret = fcntl(_wakePipe[1], F_SETFL, flags|O_NONBLOCK);
+    #else
     ret = ::fcntl(_wakePipe[1], F_SETFL, flags|O_NONBLOCK);
+    #endif
     if(-1 == ret)
         throwSystemError("fcntl");
 
@@ -225,7 +252,11 @@ bool SelectorImpl::waitUntil(Timespan until)
         log_debug("ppoll returns " << ret);
 #else
         log_debug("poll with " << _pollfds.size() << " fds, timeout=" << pollTimeout << "ms");
+        #ifdef __MINGW32__
+        ret = WSAPoll(&_pollfds[0], _pollfds.size(), pollTimeout);
+        #else
         ret = ::poll(&_pollfds[0], _pollfds.size(), pollTimeout);
+        #endif
         log_debug("poll returns " << ret);
 #endif
         if( ret != -1 )

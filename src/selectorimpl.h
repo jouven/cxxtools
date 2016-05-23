@@ -32,7 +32,12 @@
 #include <cxxtools/selectable.h>
 #include <cxxtools/timespan.h>
 #include <cxxtools/clock.h>
-#include <sys/poll.h>
+#ifdef __MINGW32__
+  #define WIN32_LEAN_AND_MEAN
+  #include <winsock2.h>
+#else
+  #include <sys/poll.h>
+#endif
 #include <vector>
 #include <set>
 

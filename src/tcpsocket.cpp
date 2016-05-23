@@ -33,6 +33,10 @@
 #include <errno.h>
 #include <cxxtools/systemerror.h>
 #include <cxxtools/ioerror.h>
+#ifdef __MINGW32__
+  #define WIN32_LEAN_AND_MEAN
+  #include <winsock2.h>
+#endif
 
 log_define("cxxtools.net.tcpsocket")
 
@@ -294,8 +298,11 @@ short TcpSocket::poll(short events) const
     int timeout = getTimeout().ceil();
 
     log_debug("poll timeout " << timeout);
-
+    #ifdef __MINGW32__
+    int p = WSAPoll(&fds, 1, timeout);
+    #else
     int p = ::poll(&fds, 1, timeout);
+    #endif
 
     log_debug("poll returns " << p << " revents " << fds.revents);
 

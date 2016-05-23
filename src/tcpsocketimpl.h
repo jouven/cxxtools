@@ -36,10 +36,15 @@
 #include "config.h"
 #include <string>
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/poll.h>
+#ifdef __MINGW32__
+
+#else
+  #include <sys/socket.h>
+  #include <sys/poll.h>
+  #include <netinet/in.h>
+#endif
+
 #include <sys/time.h>
-#include <netinet/in.h>
 #include <unistd.h>
 
 namespace cxxtools

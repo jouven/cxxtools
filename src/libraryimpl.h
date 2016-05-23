@@ -31,7 +31,12 @@
 #include "cxxtools/systemerror.h"
 #include "cxxtools/refcounted.h"
 #include <string>
+#ifdef __MINGW32__
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#else
 #include <dlfcn.h>
+#endif
 
 namespace cxxtools {
 
@@ -53,7 +58,13 @@ class LibraryImpl : public RefCounted
         ~LibraryImpl()
         {
             if(_handle)
+            {
+                #ifdef __MINGW32__
+            	FreeLibrary(_handle);
+                #else
                 ::dlclose(_handle);
+                #endif
+        	}
         }
 
         void open(const std::string& path);
@@ -76,7 +87,11 @@ class LibraryImpl : public RefCounted
         }
 
     private:
+        #ifdef __MINGW32__
+        HMODULE _handle;
+        #else
         void* _handle;
+        #endif
 };
 
 } // namespace cxxtools

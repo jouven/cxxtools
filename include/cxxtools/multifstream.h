@@ -30,7 +30,10 @@
 #define CXXTOOLS_MULTIFSTREAM_H
 
 #include <fstream>
+#ifdef __MINGW32__
+#else
 #include <glob.h>
+#endif
 #include <string>
 #include <queue>
 
@@ -45,7 +48,9 @@ namespace cxxtools
 
 class multifstreambuf : public std::streambuf
 {
+    #ifndef __MINGW32__
     glob_t mglob;
+    #endif
     unsigned current;
     std::filebuf file;
     char ch;
@@ -63,8 +68,10 @@ class multifstreambuf : public std::streambuf
     int_type underflow();
     int sync();
 
+    #ifndef __MINGW32__
     const char* current_filename() const
       { return mglob.gl_pathv[current]; }
+    #endif
 
     void add_pattern(const std::string& pattern, int flags = 0)
       { patterns.push(patterns_type::value_type(pattern, flags)); }
@@ -87,9 +94,10 @@ class multi_ifstream : public std::istream
       init(&buffer);
     }
 
+    #ifndef __MINGW32__
     const char* current_filename() const
       { return buffer.current_filename(); }
-
+    #endif
     void add_pattern(const std::string& pattern, int flags = 0)
       { buffer.add_pattern(pattern, flags); }
 

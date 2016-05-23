@@ -31,6 +31,10 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
+#ifdef __MINGW32__
+  #define WIN32_LEAN_AND_MEAN
+  #include <windows.h>
+#endif
 
 namespace cxxtools {
 
@@ -40,36 +44,45 @@ namespace cxxtools {
             static FileInfo::Type getType(const std::string& path)
             {
                 struct stat st;
+                #ifdef __MINGW32__
+                auto fileAttributesResult(GetFileAttributes(path.c_str()));
+                #else
                 if( 0 != ::lstat(path.c_str(), &st) )
                 {
                     return FileInfo::Invalid;
                 }
-
-                if( S_ISDIR(st.st_mode) ) 
+                #endif
+		#ifdef __MINGW32__
+                if (FILE_ATTRIBUTE_DIRECTORY & fileAttributesResult)
                 {
                     return FileInfo::Directory;
                 }
-                else if( S_ISCHR(st.st_mode) ) 
+                #else
+                if( S_ISDIR(st.st_mode) )
+                {
+                    return FileInfo::Directory;
+                }
+                else if( S_ISCHR(st.st_mode) )
                 {
                     return FileInfo::Chardev;
                 }
-                else if( S_ISBLK(st.st_mode) ) 
+                else if( S_ISBLK(st.st_mode) )
                 {
                     return FileInfo::Blockdev;
                 }
-                else if( S_ISFIFO(st.st_mode) ) 
+                else if( S_ISFIFO(st.st_mode) )
                 {
                     return FileInfo::Fifo;
                 }
-                else if( S_ISLNK(st.st_mode) ) 
+                else if( S_ISLNK(st.st_mode) )
                 {
                     return FileInfo::Symlink;
                 }
-                else if( S_ISSOCK(st.st_mode) ) 
+                else if( S_ISSOCK(st.st_mode) )
                 {
                     return FileInfo::Socket;
                 }
-
+                #endif
                 return FileInfo::File;
             }
     };

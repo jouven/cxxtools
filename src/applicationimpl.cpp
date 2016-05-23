@@ -112,6 +112,7 @@ bool ApplicationImpl::catchSystemSignal(int sig)
 {
     if (sig > 0 && sig < NSIG)
     {
+        #ifndef __MINGW32__
         struct sigaction act;
 
         act.sa_handler = cxxtools_system_application_sighandler;
@@ -122,7 +123,7 @@ bool ApplicationImpl::catchSystemSignal(int sig)
         {
             throw SystemError("sigaction failed");
         }
-        
+        #endif
         return true;
     }
 

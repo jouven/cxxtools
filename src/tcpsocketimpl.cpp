@@ -50,8 +50,15 @@
 #include <cstring>
 #include <cassert>
 #include <fcntl.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
+#ifdef __MINGW32__
+  #define WIN32_LEAN_AND_MEAN
+  #include <winsock2.h>
+  #include <sys/types.h>
+  #include <exception>
+#else
+  #include <netinet/in.h>
+  #include <arpa/inet.h>
+#endif
 #include <sstream>
 #ifndef HAVE_INET_NTOP
 #include "cxxtools/mutex.h"
@@ -88,11 +95,15 @@ void formatIp(const Sockaddr& sa, std::string& str)
 #  endif
 
       const char* p = 0;
- 
+
       switch(sa.sa_in.sin_family)
       {
             case AF_INET:
+                  #ifdef __MINGW32__
+                  p = inet_ntop(AF_INET, (void*)&sa.sa_in.sin_addr, strbuf, sizeof(strbuf));
+                  #else
                   p = inet_ntop(AF_INET, &sa.sa_in.sin_addr, strbuf, sizeof(strbuf));
+                  #endif
                   break;
 #  ifdef HAVE_IPV6
             case AF_INET6:
@@ -184,7 +195,11 @@ int TcpSocketImpl::checkConnect()
     socklen_t optlen = sizeof(sockerr);
 
     // check for socket error
+    #ifdef __MINGW32__
+    if( ::getsockopt(this->fd(), SOL_SOCKET, SO_ERROR, (char*)&sockerr, &optlen) != 0 )
+    #else
     if( ::getsockopt(this->fd(), SOL_SOCKET, SO_ERROR, &sockerr, &optlen) != 0 )
+    #endif
     {
         // getsockopt failed
         int e = errno;
@@ -491,6 +506,9 @@ size_t TcpSocketImpl::beginWrite(const char* buffer, size_t n)
 #else
 
     // block SIGPIPE
+    #ifdef __MINGW32__
+    throw std::runtime_error("Mingw porting, Not implemented yet.");
+    #else
     sigset_t sigpipeMask, oldSigmask;
     sigemptyset(&sigpipeMask);
     sigaddset(&sigpipeMask, SIGPIPE);
@@ -512,9 +530,9 @@ size_t TcpSocketImpl::beginWrite(const char* buffer, size_t n)
 
     // unblock SIGPIPE
     pthread_sigmask(SIG_SETMASK, &oldSigmask, 0);
-
+    #endif
 #endif
-
+    #ifndef __MINGW32__
     log_debug("send returned " << ret);
     if (ret > 0)
         return static_cast<size_t>(ret);
@@ -526,6 +544,7 @@ size_t TcpSocketImpl::beginWrite(const char* buffer, size_t n)
     {
         _pfd->events |= POLLOUT;
     }
+    #endif
 
     return 0;
 }

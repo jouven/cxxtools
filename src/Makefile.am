@@ -4,6 +4,7 @@ AM_CPPFLAGS = -I$(top_srcdir)/src -I$(top_builddir)/include -I$(top_srcdir)/incl
 lib_LTLIBRARIES = libcxxtools.la
 
 libcxxtools_la_SOURCES = \
+        fsync.cpp \
 	addrinfo.cpp \
 	addrinfoimpl.cpp \
 	application.cpp \
@@ -130,6 +131,7 @@ libcxxtools_la_SOURCES = \
 	xml/xmlwriter.cpp
 
 noinst_HEADERS = \
+        fsync.h \
 	addrinfoimpl.h \
 	applicationimpl.h \
 	clockimpl.h \
@@ -224,4 +226,4 @@ libcxxtools_la_SOURCES += \
 endif
 
 libcxxtools_la_LIBADD = $(LIBICONV)
-libcxxtools_la_LDFLAGS = -version-info @sonumber@ @SHARED_LIB_FLAG@
+libcxxtools_la_LDFLAGS = -lws2_32 -no-undefined -version-info @sonumber@ @SHARED_LIB_FLAG@

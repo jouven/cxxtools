@@ -17,6 +17,7 @@ AC_CONFIG_HEADERS([src/config.h ])
 AC_CONFIG_FILES([include/cxxtools/config.h])
 AC_CONFIG_SRCDIR([src/log.cpp])
 
+AC_LIBTOOL_WIN32_DLL
 AC_HEADER_DIRENT
 
 AC_PROG_CC
