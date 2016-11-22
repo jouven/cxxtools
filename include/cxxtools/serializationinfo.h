@@ -108,6 +108,7 @@ namespace cxxtools
 class SerializationInfo
 {
         typedef std::deque<SerializationInfo> Nodes;
+        friend void operator <<=(SerializationInfo& si, const SerializationInfo& ssi);
 
     public:
         enum Category {
@@ -377,6 +378,8 @@ class SerializationInfo
         long double _getFloat(const char* type, long double max) const;
         Nodes& nodes();
         const Nodes& nodes() const;
+        // assignment without name
+        void assignData(const SerializationInfo& si);
 
         union U
         {
@@ -426,10 +429,7 @@ inline void operator >>=(const SerializationInfo& si, SerializationInfo& ssi)
 }
 
 
-inline void operator <<=(SerializationInfo& si, const SerializationInfo& ssi)
-{
-    si = ssi;
-}
+void operator <<=(SerializationInfo& si, const SerializationInfo& ssi);
 
 
 inline void operator >>=(const SerializationInfo& si, bool& n)

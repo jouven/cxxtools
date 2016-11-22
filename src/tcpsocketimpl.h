@@ -35,6 +35,7 @@
 #include "addrinfoimpl.h"
 #include "config.h"
 #include <string>
+#include <vector>
 #include <sys/types.h>
 #ifdef __MINGW32__
 
@@ -92,6 +93,9 @@ class TcpSocketImpl : public IODeviceImpl
         void checkPendingError();
         std::string tryConnect();
         std::string _connectResult;
+        std::vector<std::string> _connectFailedMessages;
+
+        std::string connectFailedMessages();
 
     public:
         explicit TcpSocketImpl(TcpSocket& socket);
