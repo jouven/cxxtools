@@ -4,7 +4,7 @@ Requires https://github.com/dlfcn-win32/dlfcn-win32
 
 To compile the library follow the same steps as the regular cxxtools, but on the configure step use this line as a base (check your distro/mingw installation calls first):
 
-./configure --host=x86_64-w64-mingw32 CXX=x86_64-w64-mingw32-g++-posix CC=x86_64-w64-mingw32-gcc-5.3-posix
+./configure --host=x86_64-w64-mingw32 CXX=x86_64-w64-mingw32-g++-posix CC=x86_64-w64-mingw32-gcc-6.1-posix "CXXFLAGS=-std=c++11 -D_WIN32_WINNT=0x0600"
 
 Caveats:
 1. Don't expect anything that uses POSIX stuff (pipes, sockets...) to work.

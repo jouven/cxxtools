@@ -457,7 +457,7 @@ bool TcpSocketImpl::checkPollEvent(pollfd& pfd)
         socklen_t optlen = sizeof(sockerr);
 
         // check for socket error
-        if( ::getsockopt(this->fd(), SOL_SOCKET, SO_ERROR, &sockerr, &optlen) != 0 )
+        if( ::getsockopt(this->fd(), SOL_SOCKET, SO_ERROR, (char*)&sockerr, &optlen) != 0 )
             throw SystemError("getsockopt");
 
         _connectFailedMessages.push_back(connectFailedMessage(_addrInfoPtr, sockerr));
