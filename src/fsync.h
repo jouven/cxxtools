@@ -22,9 +22,11 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
+#ifndef __CYGWIN__
 #ifndef FSYNC_H_
 #define FSYNC_H_
 
 int fsync (int fd);
 
+#endif
 #endif

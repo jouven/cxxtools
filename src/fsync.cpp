@@ -78,6 +78,6 @@ int fsync (int fd)
 
 #else /* !Windows */
 
-# error "This platform lacks fsync function, and Gnulib doesn't provide a replacement. This is a bug in Gnulib."
+//# error "This platform lacks fsync function, and Gnulib doesn't provide a replacement. This is a bug in Gnulib."
 
 #endif /* !Windows */
