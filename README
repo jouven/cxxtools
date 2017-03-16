@@ -3,6 +3,7 @@ A fork of https://github.com/maekitalo/cxxtools with "changes" to allow cross co
 Requires https://github.com/dlfcn-win32/dlfcn-win32
 
 To compile the library follow the same steps as the regular cxxtools, but on the configure step use this line as a base (check your distro/mingw installation calls first):
+
 #mingw (linux host)
 ./configure "CXXFLAGS=-O2 -std=c++11 -D_WIN32_WINNT=0x0601" --host=x86_64-w64-mingw32 CXX=x86_64-w64-mingw32-g++-posix CC=x86_64-w64-mingw32-gcc-posix --without-ssl
 
