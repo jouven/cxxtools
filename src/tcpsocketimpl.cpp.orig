@@ -1,11 +1,11 @@
 /*
  * Copyright (C) 2009 Marc Boris Duerner, Tommi Maekitalo
- *
+ * 
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2.1 of the License, or (at your option) any later version.
- *
+ * 
  * As a special exception, you may use this file as part of a free
  * software library without restriction. Specifically, if other files
  * instantiate templates or use macros or inline functions from this
@@ -15,12 +15,12 @@
  * License. This exception does not however invalidate any other
  * reasons why the executable file might be covered by the GNU Library
  * General Public License.
- *
+ * 
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
@@ -63,11 +63,11 @@
 #else
   #include <netinet/in.h>
   #include <arpa/inet.h>
-  #include <openssl/err.h>
-  #include <openssl/ssl.h>
 #endif
 #include <sstream>
 
+#include <openssl/err.h>
+#include <openssl/ssl.h>
 
 log_define("cxxtools.net.tcpsocket.impl")
 
@@ -86,7 +86,7 @@ namespace
             << ">: " << getErrnoString(err);
         return msg.str();
     }
-#ifndef __MINGW32__
+
     void checkSslError()
     {
         unsigned long code = ERR_get_error();
@@ -105,7 +105,7 @@ namespace
             }
         }
     }
-#endif
+
 }
 
 void formatIp(const Sockaddr& sa, std::string& str)
@@ -353,11 +353,15 @@ int TcpSocketImpl::checkConnect()
     socklen_t optlen = sizeof(sockerr);
 
     // check for socket error
+<<<<<<< HEAD
     #ifdef __MINGW32__
     if( ::getsockopt(this->fd(), SOL_SOCKET, SO_ERROR, (char*)&sockerr, &optlen) != 0 )
     #else
-    if( ::getsockopt(_fd(), SOL_SOCKET, SO_ERROR, &sockerr, &optlen) != 0 )
+    if( ::getsockopt(this->fd(), SOL_SOCKET, SO_ERROR, &sockerr, &optlen) != 0 )
     #endif
+=======
+    if (::getsockopt(_fd, SOL_SOCKET, SO_ERROR, &sockerr, &optlen) != 0)
+>>>>>>> 6de16ad32d37929394871d8b8a279be99463ac43
     {
         // getsockopt failed
         int e = errno;
@@ -384,7 +388,6 @@ void TcpSocketImpl::checkPendingError()
 
     if (!_connectFailedMessages.empty())
         throw IOError(connectFailedMessages());
-
 }
 
 
@@ -604,11 +607,11 @@ bool TcpSocketImpl::checkPollEvent(pollfd& pfd)
         socklen_t optlen = sizeof(sockerr);
 
         // check for socket error
-#ifdef __MINGW32__
-        if (::getsockopt(this->fd(), SOL_SOCKET, SO_ERROR, (char*)&sockerr, &optlen) != 0 )
-#else
-        if (::getsockopt(_fd, SOL_SOCKET, SO_ERROR, &sockerr, &optlen) != 0 )
-#endif
+<<<<<<< HEAD
+        if( ::getsockopt(this->fd(), SOL_SOCKET, SO_ERROR, (char*)&sockerr, &optlen) != 0 )
+=======
+        if (::getsockopt(_fd, SOL_SOCKET, SO_ERROR, &sockerr, &optlen) != 0)
+>>>>>>> 6de16ad32d37929394871d8b8a279be99463ac43
             throw SystemError("getsockopt");
 
         _connectFailedMessages.push_back(connectFailedMessage(_addrInfoPtr, sockerr));
@@ -735,7 +738,6 @@ size_t TcpSocketImpl::callSend(const char* buffer, size_t n)
 
     if (errno == ECONNRESET || errno == EPIPE)
         throw IOError("lost connection to peer");
-    #endif
 
     return 0;
 }
@@ -771,6 +773,7 @@ size_t TcpSocketImpl::beginWrite(const char* buffer, size_t n)
     {
         throw std::logic_error("Device not connected when trying to write");
     }
+    #endif
 
     return 0;
 }
@@ -1100,6 +1103,7 @@ void TcpSocketImpl::endSslShutdown()
 }
 
 #endif // WITH_SSL
+
 } // namespace net
 
 } // namespace cxxtools

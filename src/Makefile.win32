@@ -10,7 +10,7 @@ AR = lib /nologo
 LINKFLAGS = /DEBUG
 CPPFLAGS = /MDd /Zi /RTC1 /Od /EHsc /GR /FD /I../include /I$(VCINSTALLDIR)\include /I$(PLATFORMSDK)/include
 
-OBJS = any.obj atomicity.obj base64stream.obj connectable.obj connection.obj iniparser.obj properties.obj syserror.obj xmltag.obj
+OBJS = any.obj atomicity.obj base64stream.obj connectable.obj connection.obj iniparser.obj properties.obj syserror.obj
 
 cxxtools.lib : $(OBJS)
     $(AR) /out:cxxtools.lib $(OBJS)
@@ -23,5 +23,5 @@ cxxtools.lib : $(OBJS)
 
 all : ..\demo\signals.exe cxxtools.lib
 
-clean : 
+clean :
     del $(OBJS) cxxtools.lib ..\demo\signals.exe ..\demo\signals.obj

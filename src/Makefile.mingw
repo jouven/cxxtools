@@ -22,8 +22,7 @@ SOURCES_CPP= \
 	properties.cpp \
 	query_params.cpp \
 	syserror.cpp \
-	tee.cpp \
-	xmltag.cpp
+	tee.cpp
 
 SOURCES_C= \
 	md5.c
