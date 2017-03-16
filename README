@@ -1,6 +1,6 @@
 A fork of https://github.com/maekitalo/cxxtools with "changes" to allow cross compile with mingw.
 
-Requires https://github.com/dlfcn-win32/dlfcn-win32
+Requires https://github.com/dlfcn-win32/dlfcn-win32 (for mingw)
 
 To compile the library follow the same steps as the regular cxxtools, but on the configure step use this line as a base (check your distro/mingw installation calls first):
 
