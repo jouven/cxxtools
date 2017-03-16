@@ -90,6 +90,7 @@ cxxtools-config
 *.swp
 *.exe
 *.dll
+*.orig
 
 # Other
 
