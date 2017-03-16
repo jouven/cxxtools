@@ -1,5 +1,7 @@
 /*
- * Copyright (C) 2005 Tommi Maekitalo
+ * Copyright (C) 2016 by Joan Escalas
+ * Copyright (C) 2016-2007 by Marc Boris Duerner
+ * Copyright (C) 2006 by Aloysius Indrayanto
  * 
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -25,56 +27,15 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
+#ifndef CXXTOOLS_ATOMICINT_CPP11_H
+#define CXXTOOLS_ATOMICINT_CPP11_H
 
-#ifndef CXXTOOLS_REFCOUNTED_H
-#define CXXTOOLS_REFCOUNTED_H
+#include <atomic>
 
-#include <cxxtools/atomicity.h>
+namespace cxxtools {
 
-namespace cxxtools
-{
-  class SimpleRefCounted
-  {
-      unsigned rc;
+typedef std::atomic_int_fast32_t atomic_t;
 
-    public:
-      SimpleRefCounted()
-        : rc(0)
-        { }
+} // namespace cxxtools
 
-      explicit SimpleRefCounted(unsigned refs_)
-        : rc(refs_)
-        { }
-
-      virtual ~SimpleRefCounted()  { }
-
-      virtual unsigned addRef()  { return ++rc; }
-      virtual unsigned release() { return --rc; }
-      unsigned refs() const      { return rc; }
-  };
-
-  class AtomicRefCounted
-  {
-      atomic_t rc;
-
-    public:
-      AtomicRefCounted()
-        : rc(0)
-        { }
-
-      explicit AtomicRefCounted(unsigned refs_)
-        : rc(refs_)
-        { }
-
-      virtual ~AtomicRefCounted()  { }
-
-      virtual int_fast32_t addRef()  { return ++rc; }
-      virtual int_fast32_t release() { return --rc; }
-      int_fast32_t refs() const      { return rc; }
-  };
-
-  typedef SimpleRefCounted RefCounted;
-}
-
-#endif // CXXTOOLS_REFCOUNTED_H
-
+#endif

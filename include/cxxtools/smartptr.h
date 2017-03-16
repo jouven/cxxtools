@@ -184,7 +184,7 @@ namespace cxxtools
   template <typename ObjectType>
   class ExternalAtomicRefCounted
   {
-      volatile atomic_t* rc;
+      atomic_t* rc;
 
     protected:
       ExternalAtomicRefCounted()
@@ -192,7 +192,7 @@ namespace cxxtools
 
       bool unlink(ObjectType* object)
       {
-        if (object && atomicDecrement(*rc) <= 0)
+        if (object && --(*rc) <= 0)
         {
           delete rc;
           rc = 0;
@@ -211,7 +211,7 @@ namespace cxxtools
           else
           {
             rc = ptr.rc;
-            atomicIncrement(*rc);
+            ++(*rc);
           }
         }
         else
@@ -219,8 +219,8 @@ namespace cxxtools
       }
 
     public:
-      atomic_t refs() const
-        { return rc ? atomicGet(*rc) : 0; }
+      int_fast32_t refs() const
+        { return rc ? rc->load() : 0; }
   };
 
   /**

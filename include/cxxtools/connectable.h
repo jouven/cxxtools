@@ -81,7 +81,7 @@ namespace cxxtools {
             virtual void onConnectionClose(const Connection& c);
 
             //! @internal @brief For unit tests only.
-            size_t connectionCount() const
+            std::size_t connectionCount() const
             { return _connections.size(); }
 
         protected:

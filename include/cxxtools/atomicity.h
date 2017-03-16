@@ -31,7 +31,9 @@
 
 #include <cxxtools/config.h>
 
-#if defined(CXXTOOLS_ATOMICITY_SUN)
+#if __cplusplus>=201103L
+    #include <cxxtools/atomicity.cpp11.h>
+#elif  defined(CXXTOOLS_ATOMICITY_SUN)
     #include <cxxtools/atomicity.sun.h>
 
 #elif defined(CXXTOOLS_ATOMICITY_WINDOWS)
@@ -125,6 +127,40 @@
 
 namespace cxxtools {
 
+#if __cplusplus>=201103L
+
+/** @brief Performs atomic addition of two values
+
+    Returns the initial value of the addend.
+*/
+int_fast32_t atomicExchangeAdd(atomic_t& val, int_fast32_t add);
+
+/** @brief Performs an atomic compare-and-exchange operation
+
+    If \a val is equal to \a comp, \a val is replaced by \a exch. The initial
+    value of of \a val is returned.
+*/
+int_fast32_t atomicCompareExchange(atomic_t& val, int_fast32_t exch, int_fast32_t comp);
+
+/** @brief Performs an atomic compare-and-exchange operation
+
+    If \a ptr is equal to \a comp, \a ptr is replaced by \a exch. The initial
+    value of \a ptr is returned.
+*/
+//void* atomicCompareExchange(void* & ptr, void* exch, void* comp);
+
+/** @brief Performs an atomic exchange operation
+
+    Sets \a val to \a exch and returns the initial value of \a val.
+*/
+int_fast32_t atomicExchange(atomic_t& val, int_fast32_t exch);
+
+/** @brief Performs an atomic exchange operation
+
+    Sets \a dest to \a exch and returns the initial value of \a dest.
+*/
+//void* atomicExchange(void* & dest, void* exch);
+#else
 /** @brief Atomically get a value
 
     Returns the value after employing a memory fence.
@@ -181,6 +217,7 @@ atomic_t atomicExchange(volatile atomic_t& val, atomic_t exch);
 */
 void* atomicExchange(void* volatile& dest, void* exch);
 
+#endif
 }
 
 #endif

@@ -454,7 +454,7 @@ class SpinMutex : private NonCopyable
         { return _count != 0; }
 
 private:
-    volatile cxxtools::atomic_t _count;
+    cxxtools::atomic_t _count;
 };
 
 

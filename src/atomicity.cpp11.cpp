@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2005 Tommi Maekitalo
+ * Copyright (C) 2016 by Joan Escalas
+ * Copyright (C) 2005 by Dr. Marc Boris Duerner
  * 
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -26,55 +27,56 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef CXXTOOLS_REFCOUNTED_H
-#define CXXTOOLS_REFCOUNTED_H
+#include <cxxtools/atomicity.cpp11.h>
 
-#include <cxxtools/atomicity.h>
+namespace cxxtools {
 
-namespace cxxtools
+int_fast32_t atomicCompareExchange(atomic_t& val, int_fast32_t exch, int_fast32_t comp)
 {
-  class SimpleRefCounted
-  {
-      unsigned rc;
-
-    public:
-      SimpleRefCounted()
-        : rc(0)
-        { }
-
-      explicit SimpleRefCounted(unsigned refs_)
-        : rc(refs_)
-        { }
-
-      virtual ~SimpleRefCounted()  { }
-
-      virtual unsigned addRef()  { return ++rc; }
-      virtual unsigned release() { return --rc; }
-      unsigned refs() const      { return rc; }
-  };
-
-  class AtomicRefCounted
-  {
-      atomic_t rc;
-
-    public:
-      AtomicRefCounted()
-        : rc(0)
-        { }
-
-      explicit AtomicRefCounted(unsigned refs_)
-        : rc(refs_)
-        { }
-
-      virtual ~AtomicRefCounted()  { }
-
-      virtual int_fast32_t addRef()  { return ++rc; }
-      virtual int_fast32_t release() { return --rc; }
-      int_fast32_t refs() const      { return rc; }
-  };
-
-  typedef SimpleRefCounted RefCounted;
+    int_fast32_t old(val);
+    if(old == comp)
+    {
+        std::atomic_exchange(&val, exch);
+    }
+    return old;
 }
 
-#endif // CXXTOOLS_REFCOUNTED_H
 
+//void* atomicCompareExchange(void* & ptr, void* exch, void* comp)
+//{
+//    void* old(ptr);
+//    if(old == comp)
+//    {
+//        ptr = exch;
+//    }
+//    return old;
+//}
+
+
+int_fast32_t atomicExchange(atomic_t& val, int_fast32_t exch)
+{
+    int_fast32_t ret(val);
+    std::atomic_exchange(&val, exch);
+
+    return ret;
+}
+
+//void* atomicity::atomicExchange(void* & dest, void* exch)
+//{
+//	std::lock_guard<std::mutex> lock(mutex_pri);
+//    void* ret(dest);
+//    dest = exch;
+//
+//    return ret;
+//}
+
+
+int_fast32_t atomicExchangeAdd(atomic_t& val, int_fast32_t add)
+{
+    int_fast32_t ret(val);
+    val += add;
+
+    return ret;
+}
+
+} // namespace cxxtools

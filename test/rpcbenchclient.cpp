@@ -85,13 +85,13 @@ class BenchClient
     { _objectsSize = n; }
 
     static unsigned requestsStarted()
-    { return static_cast<unsigned>(cxxtools::atomicGet(_requestsStarted)); }
+    { return static_cast<unsigned>(_requestsStarted); }
 
     static unsigned requestsFinished()
-    { return static_cast<unsigned>(cxxtools::atomicGet(_requestsFinished)); }
+    { return static_cast<unsigned>(_requestsFinished); }
 
     static unsigned requestsFailed()
-    { return static_cast<unsigned>(cxxtools::atomicGet(_requestsFailed)); }
+    { return static_cast<unsigned>(_requestsFailed); }
 
     void start()
     { thread.start(); }
@@ -116,38 +116,38 @@ void BenchClient::exec()
   cxxtools::RemoteProcedure<std::vector<int>, int, int> seq(*client, "seq");
   cxxtools::RemoteProcedure<std::vector<Color>, unsigned> objects(*client, "objects");
 
-  while (static_cast<unsigned>(cxxtools::atomicIncrement(_requestsStarted)) <= _numRequests)
+  while (static_cast<unsigned>(++_requestsStarted) <= _numRequests)
   {
     try
     {
       if (_vectorSize > 0)
       {
         std::vector<int> ret = seq(1, _vectorSize);
-        cxxtools::atomicIncrement(_requestsFinished);
+        ++_requestsFinished;
         if (ret.size() != _vectorSize)
         {
           std::cerr << "wrong response result size " << ret.size() << std::endl;
-          cxxtools::atomicIncrement(_requestsFailed);
+          ++_requestsFailed;
         }
       }
       else if (_objectsSize > 0)
       {
         std::vector<Color> ret = objects(_objectsSize);
-        cxxtools::atomicIncrement(_requestsFinished);
+        ++_requestsFinished;
         if (ret.size() != _objectsSize)
         {
           std::cerr << "wrong response result size " << ret.size() << std::endl;
-          cxxtools::atomicIncrement(_requestsFailed);
+          ++_requestsFailed;
         }
       }
       else
       {
         std::string ret = echo("hi");
-        cxxtools::atomicIncrement(_requestsFinished);
+        ++_requestsFinished;
         if (ret != "hi")
         {
           std::cerr << "wrong response result \"" << ret << '"' << std::endl;
-          cxxtools::atomicIncrement(_requestsFailed);
+          ++_requestsFailed;
         }
       }
     }
@@ -158,7 +158,7 @@ void BenchClient::exec()
         std::cerr << "request failed with error message \"" << e.what() << '"' << std::endl;
       }
 
-      cxxtools::atomicIncrement(_requestsFailed);
+      ++_requestsFailed;
     }
   }
 }
@@ -236,4 +236,3 @@ int main(int argc, char* argv[])
     std::cerr << e.what() << std::endl;
   }
 }
-

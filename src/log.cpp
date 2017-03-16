@@ -71,7 +71,7 @@ namespace cxxtools
     Mutex loggersMutex;
     Mutex logMutex;
     Mutex poolMutex;
-    atomic_t mutexWaitCount = 0;
+    atomic_t mutexWaitCount(0);
 
     template <typename T, unsigned MaxPoolSize = 8>
     class LPool
@@ -135,19 +135,19 @@ namespace cxxtools
           : count(count_),
             decremented(false)
         {
-          atomicIncrement(count);
+          ++count;
         }
 
         ~ScopedAtomicIncrementer()
         {
           if (!decremented)
-            atomicDecrement(count);
+            --count;
         }
 
-        atomic_t decrement()
+        int_fast32_t decrement()
         {
           decremented = true;
-          return atomicDecrement(count);
+          return --count;
         }
     };
 

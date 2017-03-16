@@ -49,7 +49,7 @@ AC_DEFUN([AC_CXXTOOLS_ATOMICTYPE],
     [atomictype],
     AS_HELP_STRING([--with-atomictype],
                    [force atomic type. Accepted arguments:
-                    sun, windows, att_x86, att_x86_64, att_arm, att_mips, att_ppc, att_sparc32, att_sparc64, pthread,
+                    cpp11, sun, windows, att_x86, att_x86_64, att_arm, att_mips, att_ppc, att_sparc32, att_sparc64, pthread,
                     generic, probe]),
     [ ac_cxxtools_atomicity=$withval ],
     [ ac_cxxtools_atomicity=probe ])
@@ -57,6 +57,15 @@ AC_DEFUN([AC_CXXTOOLS_ATOMICTYPE],
   dnl check, if atomictype is valid
 
   dnl sun
+  AC_CHECKATOMICTYPE([cpp11], [CXXTOOLS_ATOMICITY_CPP11],
+      [ 
+        #include <mutex>
+        std::mutex mutex;
+        int main() 
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+        }
+        ])
   AC_CHECKATOMICTYPE([sun], [CXXTOOLS_ATOMICITY_SUN],
       [ #include <sys/atomic.h>
         int main () { volatile ulong_t* uvalue; atomic_inc_ulong_nv( uvalue ); } ])
@@ -210,6 +219,10 @@ AC_DEFUN([AC_CXXTOOLS_ATOMICTYPE],
   if test "$ac_cxxtools_atomicity" = "generic"
   then
     CXXTOOLS_ATOMICITY=CXXTOOLS_ATOMICITY_GENERIC
+  fi
+  if test "$ac_cxxtools_atomicity" = "cpp11"
+  then
+    CXXTOOLS_ATOMICITY=CXXTOOLS_ATOMICITY_CPP11
   fi
   if test "$CXXTOOLS_ATOMICITY" = ""
   then

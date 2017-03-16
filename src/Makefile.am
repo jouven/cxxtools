@@ -225,5 +225,10 @@ libcxxtools_la_SOURCES += \
 	atomicity.generic.cpp
 endif
 
+if MAKE_ATOMICITY_CPP11
+libcxxtools_la_SOURCES += \
+    atomicity.cpp11.cpp
+endif
+
 libcxxtools_la_LIBADD = $(LIBICONV)
 libcxxtools_la_LDFLAGS = -lws2_32 -no-undefined -version-info @sonumber@ @SHARED_LIB_FLAG@

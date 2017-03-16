@@ -262,8 +262,8 @@ class BenchClient : public cxxtools::Connectable
 
     void onFinished(RemoteExecutor* e)
     {
-      cxxtools::atomicIncrement(_requestsFinished);
-      if (static_cast<unsigned>(cxxtools::atomicIncrement(_requestsStarted)) <= _numRequests)
+      ++_requestsFinished;
+      if (static_cast<unsigned>(++_requestsStarted) <= _numRequests)
         e->begin();
       else
       {
@@ -276,7 +276,7 @@ class BenchClient : public cxxtools::Connectable
 
     void onFailed(RemoteExecutor* /*e*/)
     {
-      cxxtools::atomicIncrement(_requestsFailed);
+      ++_requestsFailed;
     }
 
   public:
@@ -300,7 +300,7 @@ class BenchClient : public cxxtools::Connectable
         cxxtools::connect(executor->finished, *this, &BenchClient::onFinished);
         cxxtools::connect(executor->failed, *this, &BenchClient::onFailed);
 
-        cxxtools::atomicIncrement(_requestsStarted);
+        ++_requestsStarted;
         executor->begin();
 
         executors.insert(executor);
@@ -334,13 +334,13 @@ class BenchClient : public cxxtools::Connectable
     { _objectsSize = n; }
 
     static unsigned requestsStarted()
-    { return static_cast<unsigned>(cxxtools::atomicGet(_requestsStarted)); }
+    { return static_cast<unsigned>(_requestsStarted); }
 
     static unsigned requestsFinished()
-    { return static_cast<unsigned>(cxxtools::atomicGet(_requestsFinished)); }
+    { return static_cast<unsigned>(_requestsFinished); }
 
     static unsigned requestsFailed()
-    { return static_cast<unsigned>(cxxtools::atomicGet(_requestsFailed)); }
+    { return static_cast<unsigned>(_requestsFailed); }
 
     void start()
     { thread.start(); }

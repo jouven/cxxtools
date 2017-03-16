@@ -307,3 +307,8 @@ nobase_include_HEADERS += \
         cxxtools/atomicity.generic.h
 endif
 
+if MAKE_ATOMICITY_CPP11
+nobase_include_HEADERS += \
+        cxxtools/atomicity.cpp11.h
+endif
+

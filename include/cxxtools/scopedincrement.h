@@ -66,18 +66,18 @@ class ScopedIncrement<atomic_t>
         {
             int c = _count;
             for (; c > 0; --c)
-                atomicIncrement(_value);
+                ++_value;;
             for (; c < 0; ++c)
-                atomicDecrement(_value);
+                --_value;
         }
 
         ~ScopedIncrement()
         {
             int c = _count;
             for (c = _count; c > 0; --c)
-                atomicDecrement(_value);
+                --_value;
             for (; c < 0; ++c)
-                atomicIncrement(_value);
+                ++_value;
         }
 };
 
