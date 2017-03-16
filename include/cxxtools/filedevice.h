@@ -83,6 +83,16 @@ class FileDevice : public IODevice
 
         void onSync() const;
 
+        IODeviceImpl& ioimpl();
+
+        SelectableImpl& simpl();
+
+        bool onWait(Timespan timeout);
+
+        void onAttach(SelectorBase& s);
+
+        void onDetach(SelectorBase& s);
+
     private:
         std::string _path;
 };

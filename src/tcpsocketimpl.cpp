@@ -45,6 +45,10 @@
 #include <cxxtools/log.h>
 #include <cxxtools/join.h>
 #include <cxxtools/hdstream.h>
+#ifndef HAVE_INET_NTOP
+#include "cxxtools/mutex.h"
+#endif
+
 #include "config.h"
 #include "error.h"
 #include <cerrno>
@@ -61,9 +65,9 @@
   #include <arpa/inet.h>
 #endif
 #include <sstream>
-#ifndef HAVE_INET_NTOP
-#include "cxxtools/mutex.h"
-#endif
+
+#include <openssl/err.h>
+#include <openssl/ssl.h>
 
 log_define("cxxtools.net.tcpsocket.impl")
 
@@ -83,6 +87,25 @@ namespace
         return msg.str();
     }
 
+    void checkSslError()
+    {
+        unsigned long code = ERR_get_error();
+        if (code != 0)
+        {
+            char buffer[120];
+            if (ERR_error_string(code, buffer))
+            {
+                log_debug("SSL-Error " << code << ": \"" << buffer << '"');
+                throw SslError(buffer, code);
+            }
+            else
+            {
+                log_debug("unknown SSL-Error " << code);
+                throw SslError("unknown SSL-Error", code);
+            }
+        }
+    }
+
 }
 
 void formatIp(const Sockaddr& sa, std::string& str)
@@ -96,7 +119,7 @@ void formatIp(const Sockaddr& sa, std::string& str)
 #  endif
 
       const char* p = 0;
-
+ 
       switch(sa.sa_in.sin_family)
       {
             case AF_INET:
@@ -118,8 +141,8 @@ void formatIp(const Sockaddr& sa, std::string& str)
 
 #else // HAVE_INET_NTOP
 
-      static cxxtools::Mutex monitor;
-      cxxtools::MutexLock lock(monitor);
+      static Mutex monitor;
+      MutexLock lock(monitor);
 
       const char* p = inet_ntoa(sa.sa_in.sin_addr);
       if (p)
@@ -157,10 +180,131 @@ std::string TcpSocketImpl::connectFailedMessages()
     return msg.str();
 }
 
+#ifdef WITH_SSL
+void TcpSocketImpl::checkSslOperation(int ret, const char* fn, pollfd* pfd)
+{
+    int err = SSL_get_error(_ssl, ret);
+
+    log_debug("check ssl operation ret=" << ret << " err=" << err);
+
+    switch (err)
+    {
+        case SSL_ERROR_NONE:
+            break;
+
+        case SSL_ERROR_ZERO_RETURN:
+            log_debug("SSL_ERROR_ZERO_RETURN");
+            _state = CONNECTED;
+            _socket.sslClosed(_socket);
+            break;
+
+        case SSL_ERROR_WANT_READ:
+            log_debug("SSL_ERROR_WANT_READ");
+            if (pfd)
+            {
+                pfd->events |= POLLIN;
+                pfd->events &= ~POLLOUT;
+            }
+            break;
+
+        case SSL_ERROR_WANT_WRITE:
+        case SSL_ERROR_WANT_CONNECT:
+        case SSL_ERROR_WANT_ACCEPT:
+            log_debug("SSL_ERROR_WANT_WRITE");
+            if (pfd)
+            {
+                pfd->events |= POLLOUT;
+                pfd->events &= ~POLLIN;
+            }
+            break;
+
+        case SSL_ERROR_WANT_X509_LOOKUP:
+            log_debug("SSL_ERROR_WANT_X509_LOOKUP");
+            break;
+
+        case SSL_ERROR_SYSCALL:
+            log_debug("SSL_ERROR_SYSCALL; errno=" << errno);
+            checkSslError();
+            if (ret == 0)
+            {
+                close();
+                _socket.closed(_socket);
+                //throw IOError("lost connection to peer");
+            }
+            else
+            {
+                int e = errno;
+                close();
+                throw SystemError(e, fn);
+            }
+
+        case SSL_ERROR_SSL:
+            log_debug("SSL_ERROR_SSL");
+            checkSslError();
+            break;
+    }
+}
+
+void TcpSocketImpl::waitSslOperation(int ret)
+{
+    pollfd pfd;
+    pfd.fd = _fd;
+    pfd.revents = 0;
+    pfd.events = 0;
+
+    checkSslOperation(ret, 0, &pfd);
+
+    log_debug("wait " << timeout());
+    bool avail = wait(timeout(), pfd);
+    if (!avail)
+        throw IOTimeout();
+}
+
+void TcpSocketImpl::initSsl()
+{
+    {
+        MutexLock lock(_sslMutex);
+        if (!_sslCtx)
+        {
+            log_debug("SSL_load_error_strings");
+            SSL_load_error_strings();
+
+            log_debug("SSL_library_init");
+            SSL_library_init();
+
+            checkSslError();
+
+#ifdef HAVE_TLS_METHOD
+            log_debug("SSL_CTX_new(TLS_method())");
+            _sslCtx = SSL_CTX_new(TLS_method());
+#else
+            log_debug("SSL_CTX_new(SSLv23_method())");
+            _sslCtx = SSL_CTX_new(SSLv23_method());
+#endif
+            checkSslError();
+        }
+    }
+
+    if (!_ssl)
+    {
+        _ssl = SSL_new(_sslCtx);
+        checkSslError();
+
+        log_debug("SSL_set_fd(" << _ssl << ", " << _fd << ')');
+        SSL_set_fd(_ssl, _fd);
+    }
+}
+#endif // WITH_SSL
+
 TcpSocketImpl::TcpSocketImpl(TcpSocket& socket)
-: IODeviceImpl(socket)
-, _socket(socket)
-, _isConnected(false)
+: IODeviceImpl(socket),
+  _socket(socket),
+  _state(IDLE)
+#ifdef WITH_SSL
+  ,
+  _sslCtx(0),
+  _ssl(0)
+#endif
 {
 }
 
@@ -168,6 +312,13 @@ TcpSocketImpl::TcpSocketImpl(TcpSocket& socket)
 TcpSocketImpl::~TcpSocketImpl()
 {
     assert(_pfd == 0);
+
+#ifdef WITH_SSL
+    if (_ssl)
+        SSL_clear(_ssl);
+    if (_sslCtx)
+        SSL_CTX_free(_sslCtx);
+#endif
 }
 
 
@@ -175,12 +326,12 @@ void TcpSocketImpl::close()
 {
     log_debug("close socket " << _fd);
     IODeviceImpl::close();
-    _isConnected = false;
+    _state = IDLE;
 }
 
 
 std::string TcpSocketImpl::getSockAddr() const
-{ return net::getSockAddr(fd()); }
+{ return net::getSockAddr(_fd); }
 
 std::string TcpSocketImpl::getPeerAddr() const
 {
@@ -191,14 +342,6 @@ std::string TcpSocketImpl::getPeerAddr() const
     std::string ret;
     formatIp(addr, ret);
     return ret;
-}
-
-
-void TcpSocketImpl::connect(const AddrInfo& addrInfo)
-{
-    log_debug("connect");
-    this->beginConnect(addrInfo);
-    this->endConnect();
 }
 
 
@@ -213,7 +356,7 @@ int TcpSocketImpl::checkConnect()
     #ifdef __MINGW32__
     if( ::getsockopt(this->fd(), SOL_SOCKET, SO_ERROR, (char*)&sockerr, &optlen) != 0 )
     #else
-    if( ::getsockopt(this->fd(), SOL_SOCKET, SO_ERROR, &sockerr, &optlen) != 0 )
+    if( ::getsockopt(_fd(), SOL_SOCKET, SO_ERROR, &sockerr, &optlen) != 0 )
     #endif
     {
         // getsockopt failed
@@ -225,7 +368,7 @@ int TcpSocketImpl::checkConnect()
     if (sockerr == 0)
     {
         log_debug("connected successfully to " << getPeerAddr());
-        _isConnected = true;
+        _state = CONNECTED;
     }
 
     return sockerr;
@@ -237,8 +380,11 @@ void TcpSocketImpl::checkPendingError()
     {
         _connectFailedMessages.push_back(_connectResult);
         _connectResult.clear();
-        throw IOError(connectFailedMessages());
     }
+
+    if (!_connectFailedMessages.empty())
+        throw IOError(connectFailedMessages());
+
 }
 
 
@@ -276,7 +422,7 @@ std::string TcpSocketImpl::tryConnect()
 #ifdef HAVE_SO_NOSIGPIPE
         static const int on = 1;
         if (::setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &on, sizeof(on)) < 0)
-            throw cxxtools::SystemError("setsockopt(SO_NOSIGPIPE)");
+            throw SystemError("setsockopt(SO_NOSIGPIPE)");
 #endif
 
         IODeviceImpl::open(fd, true, false);
@@ -286,9 +432,9 @@ std::string TcpSocketImpl::tryConnect()
         log_debug("created socket " << _fd << " max: " << FD_SETSIZE);
         log_debug("connect to port " << _addrInfo.port());
 
-        if( ::connect(this->fd(), _addrInfoPtr->ai_addr, _addrInfoPtr->ai_addrlen) == 0 )
+        if (::connect(_fd, _addrInfoPtr->ai_addr, _addrInfoPtr->ai_addrlen) == 0)
         {
-            _isConnected = true;
+            _state = CONNECTED;
             log_debug("connected successfully to " << getPeerAddr());
             break;
         }
@@ -313,14 +459,15 @@ bool TcpSocketImpl::beginConnect(const AddrInfo& addrInfo)
 {
     log_trace("begin connect");
 
-    assert(!_isConnected);
+    assert(_state == IDLE);
 
     _connectFailedMessages.clear();
     _addrInfo = addrInfo;
     _addrInfoPtr = _addrInfo.impl()->begin();
+    _state = CONNECTING;
     _connectResult = tryConnect();
     checkPendingError();
-    return _isConnected;
+    return _state == CONNECTED;
 }
 
 
@@ -328,14 +475,14 @@ void TcpSocketImpl::endConnect()
 {
     log_trace("ending connect");
 
-    if(_pfd && ! _socket.wbuf())
+    if (_pfd && ! _socket.wbuf())
     {
         _pfd->events &= ~POLLOUT;
     }
 
     checkPendingError();
 
-    if( _isConnected )
+    if ( _state == CONNECTED )
         return;
 
     try
@@ -343,18 +490,18 @@ void TcpSocketImpl::endConnect()
         while (true)
         {
             pollfd pfd;
-            pfd.fd = this->fd();
+            pfd.fd = _fd;
             pfd.revents = 0;
             pfd.events = POLLOUT;
 
             log_debug("wait " << timeout());
-            bool avail = this->wait(this->timeout(), pfd);
+            bool avail = wait(timeout(), pfd);
 
             if (avail)
             {
                 // something has happened
                 int sockerr = checkConnect();
-                if (_isConnected)
+                if (_state == CONNECTED)
                 {
                     _connectFailedMessages.clear();
                     return;
@@ -378,7 +525,7 @@ void TcpSocketImpl::endConnect()
             close();
 
             _connectResult = tryConnect();
-            if (_isConnected)
+            if (_state == CONNECTED)
             {
                 _connectResult.clear();
                 _connectFailedMessages.clear();
@@ -401,7 +548,7 @@ void TcpSocketImpl::accept(const TcpServer& server, unsigned flags)
 
     _fd = server.impl().accept(flags, reinterpret_cast <struct sockaddr*>(&_peeraddr), peeraddr_len);
 
-    if( _fd < 0 )
+    if (_fd < 0)
         throw SystemError("accept");
 
 #ifdef HAVE_ACCEPT4
@@ -412,7 +559,7 @@ void TcpSocketImpl::accept(const TcpServer& server, unsigned flags)
 #endif
     //TODO ECONNABORTED EINTR EPERM
 
-    _isConnected = true;
+    _state = CONNECTED;
     log_debug( "accepted from " << getPeerAddr());
 }
 
@@ -421,7 +568,7 @@ void TcpSocketImpl::initWait(pollfd& pfd)
 {
     IODeviceImpl::initWait(pfd);
 
-    if( ! _isConnected )
+    if (!isConnected())
     {
         log_debug("not connected, setting POLLOUT ");
         pfd.events = POLLOUT;
@@ -433,7 +580,7 @@ bool TcpSocketImpl::checkPollEvent(pollfd& pfd)
 {
     log_debug("checkPollEvent " << pfd.revents);
 
-    if (_isConnected)
+    if (isConnected())
     {
         // check for error while neither reading nor writing
         //
@@ -457,7 +604,7 @@ bool TcpSocketImpl::checkPollEvent(pollfd& pfd)
         socklen_t optlen = sizeof(sockerr);
 
         // check for socket error
-        if( ::getsockopt(this->fd(), SOL_SOCKET, SO_ERROR, (char*)&sockerr, &optlen) != 0 )
+        if (::getsockopt(_fd, SOL_SOCKET, SO_ERROR, &sockerr, &optlen) != 0)
             throw SystemError("getsockopt");
 
         _connectFailedMessages.push_back(connectFailedMessage(_addrInfoPtr, sockerr));
@@ -478,7 +625,7 @@ bool TcpSocketImpl::checkPollEvent(pollfd& pfd)
             close();
             _connectResult = tryConnect();
 
-            if (_isConnected || !_connectResult.empty())
+            if (_state == CONNECTED || !_connectFailedMessages.empty())
             {
                 // immediate success or error
                 log_debug("connected successfully");
@@ -494,10 +641,10 @@ bool TcpSocketImpl::checkPollEvent(pollfd& pfd)
             return true;
         }
     }
-    else if( pfd.revents & POLLOUT )
+    else if (pfd.revents & POLLOUT)
     {
         int sockerr = checkConnect();
-        if (_isConnected)
+        if (_state == CONNECTED)
         {
             _socket.connected(_socket);
             return true;
@@ -516,7 +663,7 @@ bool TcpSocketImpl::checkPollEvent(pollfd& pfd)
 
         close();
         _connectResult = tryConnect();
-        if (_isConnected)
+        if (_state == CONNECTED)
         {
             _socket.connected(_socket);
             return true;
@@ -526,17 +673,24 @@ bool TcpSocketImpl::checkPollEvent(pollfd& pfd)
     return false;
 }
 
-size_t TcpSocketImpl::beginWrite(const char* buffer, size_t n)
+size_t TcpSocketImpl::callSend(const char* buffer, size_t n)
 {
-    log_debug("::send(" << _fd << ", \"" << hexDump(buffer, n) << "\", " << n << ')');
+    log_debug("::send(" << _fd << ", buffer, " << n << ')');
+    log_finer(HexDump(buffer, n));
 
 #if defined(HAVE_MSG_NOSIGNAL)
 
-    ssize_t ret = ::send(_fd, (const void*)buffer, n, MSG_NOSIGNAL);
+    ssize_t ret;
+    do {
+        ret = ::send(_fd, (const void*)buffer, n, MSG_NOSIGNAL);
+    } while (ret == -1 && errno == EINTR);
 
 #elif defined(HAVE_SO_NOSIGPIPE)
 
-    ssize_t ret = ::send(_fd, (const void*)buffer, n, 0);
+    ssize_t ret;
+    do {
+        ret = ::send(_fd, (const void*)buffer, n, 0);
+    } while (ret == -1 && errno == EINTR);
 
 #else
 
@@ -550,7 +704,10 @@ size_t TcpSocketImpl::beginWrite(const char* buffer, size_t n)
     pthread_sigmask(SIG_BLOCK, &sigpipeMask, &oldSigmask);
 
     // execute send
-    ssize_t ret = ::send(_fd, (const void*)buffer, n, 0);
+    ssize_t ret;
+    do {
+        ret = ::send(_fd, (const void*)buffer, n, 0);
+    } while (ret == -1 && errno == EINTR);
 
     // clear possible SIGPIPE
     sigset_t pending;
@@ -572,20 +729,373 @@ size_t TcpSocketImpl::beginWrite(const char* buffer, size_t n)
     if (ret > 0)
         return static_cast<size_t>(ret);
 
-    if (ret == 0 || errno == ECONNRESET || errno == EPIPE)
+    if (errno == ECONNRESET || errno == EPIPE)
         throw IOError("lost connection to peer");
-
-    if(_pfd)
-    {
-        _pfd->events |= POLLOUT;
-    }
     #endif
 
     return 0;
 }
 
 
+size_t TcpSocketImpl::beginWrite(const char* buffer, size_t n)
+{
+    if (_state == CONNECTED)
+    {
+        size_t ret = callSend(buffer, n);
 
+        if (ret > 0)
+            return ret;
+
+        if (_pfd)
+            _pfd->events |= POLLOUT;
+    }
+#ifdef WITH_SSL
+    else if (_state == SSLCONNECTED)
+    {
+        log_debug("SSL_write(" << _fd << ", buffer, " << n << ')');
+        log_finer(HexDump(buffer, n));
+
+        int ret = SSL_write(_ssl, buffer, n);
+        log_debug("SSL_write returned " << ret);
+        if (ret > 0)
+            return ret;
+
+        checkSslOperation(ret, "SSL_write", _pfd);
+    }
+#endif
+    else
+    {
+        throw std::logic_error("Device not connected when trying to write");
+    }
+
+    return 0;
+}
+
+
+size_t TcpSocketImpl::write(const char* buffer, size_t n)
+{
+    ssize_t ret = 0;
+
+    while (true)
+    {
+        if (_state == CONNECTED)
+        {
+            ret = callSend(buffer, n);
+            if (ret > 0)
+                break;
+
+            if (errno != EAGAIN)
+                throw IOError(getErrnoString("Could not write to file handle"));
+
+            pollfd pfd;
+            pfd.fd = _fd;
+            pfd.revents = 0;
+            pfd.events = POLLOUT;
+
+            if (!wait(_timeout, pfd))
+                throw IOTimeout();
+        }
+#ifdef WITH_SSL
+        else if (_state == SSLCONNECTED)
+        {
+            log_debug("SSL_write");
+            ret = SSL_write(_ssl, buffer, n);
+            if (ret > 0)
+                break;
+            waitSslOperation(ret);
+        }
+#endif
+        else
+        {
+            throw std::logic_error("Device not connected when trying to write");
+        }
+    }
+
+    return static_cast<size_t>(ret);
+}
+
+void TcpSocketImpl::inputReady()
+{
+    switch (_state)
+    {
+        case IDLE:
+        case CONNECTING:
+            break;
+
+        case CONNECTED:
+#ifdef WITH_SSL
+        case SSLCONNECTED:
+#endif
+            IODeviceImpl::inputReady();
+            break;
+
+#ifdef WITH_SSL
+        case SSLACCEPTING:
+            beginSslAccept();
+            break;
+
+        case SSLCONNECTING:
+            beginSslConnect();
+            break;
+
+        case SSLSHUTTINGDOWN:
+            beginSslShutdown();
+            break;
+#endif
+    }
+}
+
+void TcpSocketImpl::outputReady()
+{
+    switch (_state)
+    {
+        case IDLE:
+        case CONNECTING:
+            break;
+
+        case CONNECTED:
+#ifdef WITH_SSL
+        case SSLCONNECTED:
+#endif
+            IODeviceImpl::outputReady();
+            break;
+
+#ifdef WITH_SSL
+        case SSLACCEPTING:
+            beginSslAccept();
+            break;
+
+        case SSLCONNECTING:
+            beginSslConnect();
+            break;
+
+        case SSLSHUTTINGDOWN:
+            beginSslShutdown();
+            break;
+#endif
+    }
+}
+
+size_t TcpSocketImpl::read(char* buffer, size_t count, bool& eof)
+{
+    if (_state == CONNECTED)
+    {
+        return IODeviceImpl::read(buffer, count, eof);
+    }
+#ifdef WITH_SSL
+    else if (_state == SSLCONNECTED)
+    {
+        while (true)
+        {
+            log_debug("SSL_read");
+            int ret = SSL_read(_ssl, buffer, count);
+            log_debug("SSL_read(" << _fd << ", " << count << ") returned " << ret);
+            if (ret > 0)
+            {
+                log_finer(HexDump(buffer, ret));
+                return ret;
+            }
+
+            pollfd pfd;
+            pfd.fd = _fd;
+            pfd.revents = 0;
+            pfd.events = 0;
+
+            checkSslOperation(ret, "SSL_read", &pfd);
+
+            if (_state != SSLCONNECTED)
+            {
+                eof = true;
+                return 0;
+            }
+
+            log_debug("wait " << timeout());
+            bool avail = wait(timeout(), pfd);
+            if (!avail)
+                throw IOTimeout();
+        }
+    }
+#endif
+    else
+    {
+        throw std::logic_error("Device not connected when trying to read");
+    }
+}
+
+#ifdef WITH_SSL
+
+Mutex TcpSocketImpl::_sslMutex;
+
+void TcpSocketImpl::loadSslCertificateFile(const std::string& certFile, const std::string& privateKeyFile)
+{
+    log_debug("load ssl certificate file \"" << certFile << '"');
+    initSsl();
+    int ret = SSL_use_certificate_file(_ssl, certFile.c_str(), SSL_FILETYPE_PEM);
+    if (ret != 1)
+        checkSslOperation(ret, "SSL_use_certificate_file", _pfd);
+
+    std::string key = privateKeyFile.empty() ? certFile : privateKeyFile;
+    log_debug("load ssl private key file \"" << key << '"');
+    ret = SSL_use_PrivateKey_file(_ssl, key.c_str(), SSL_FILETYPE_PEM);
+    if (ret != 1)
+        checkSslOperation(ret, "SSL_use_PrivateKey_file", _pfd);
+
+    log_debug("check private key");
+    if (!SSL_check_private_key(_ssl))
+        throw SslError("private key does not match the certificate public key", 0);
+
+    log_debug("private key ok");
+}
+
+bool TcpSocketImpl::beginSslConnect()
+{
+    if (!(_state == CONNECTED || _state == SSLCONNECTING))
+        throw std::logic_error("Device not connected when trying to enable ssl");
+
+    _state = SSLCONNECTING;
+    initSsl();
+
+    log_debug("SSL_connect");
+    int ret = SSL_connect(_ssl);
+    if (ret == 1)
+    {
+        log_debug("SSL connection successful");
+        _state = SSLCONNECTED;
+        return true;
+    }
+
+    checkSslOperation(ret, "SSL_connect", _pfd);
+    return false;
+}
+
+void TcpSocketImpl::endSslConnect()
+{
+    log_trace("ending ssl connect");
+
+    if (_pfd && !_socket.wbuf())
+        _pfd->events &= ~POLLOUT;
+
+    if (_state == SSLCONNECTED)
+        return;
+
+    if (_state != SSLCONNECTING)
+        throw std::logic_error("Device not in connecting mode when trying to finish ssl");
+
+    while (true)
+    {
+        log_debug("SSL_connect");
+        int ret = SSL_connect(_ssl);
+        if (ret == 1)
+        {
+            log_debug("SSL connection successful");
+            _state = SSLCONNECTED;
+            return;
+        }
+
+        waitSslOperation(ret);
+    }
+}
+
+bool TcpSocketImpl::beginSslAccept()
+{
+    if (!(_state == CONNECTED || _state == SSLACCEPTING))
+        throw std::logic_error("Device not connected when trying to enable ssl");
+
+    _state = SSLACCEPTING;
+    initSsl();
+
+    log_debug("SSL_accept");
+    int ret = SSL_accept(_ssl);
+    if (ret == 1)
+    {
+        log_debug("SSL accepted");
+        _state = SSLCONNECTED;
+        return true;
+    }
+
+    checkSslOperation(ret, "SSL_accept", _pfd);
+    return false;
+}
+
+void TcpSocketImpl::endSslAccept()
+{
+    log_trace("ending ssl accept");
+
+    if (_pfd && !_socket.wbuf())
+        _pfd->events &= ~POLLOUT;
+
+    if (_state == SSLCONNECTED)
+        return;
+
+    if (_state != SSLACCEPTING)
+        throw std::logic_error("Device not in accepting mode when trying to finish ssl");
+
+    while (true)
+    {
+        log_debug("SSL_accept");
+        int ret = SSL_accept(_ssl);
+        if (ret == 1)
+        {
+            log_debug("SSL accepted");
+            _state = SSLCONNECTED;
+            return;
+        }
+
+        waitSslOperation(ret);
+    }
+}
+
+bool TcpSocketImpl::beginSslShutdown()
+{
+    if (!(_state == SSLCONNECTED || _state == SSLSHUTTINGDOWN))
+        throw std::logic_error("Device not connected when trying to shutdown ssl");
+
+    _state = SSLSHUTTINGDOWN;
+
+    log_debug("SSL_shutdown");
+    int ret = SSL_shutdown(_ssl);
+    if (ret == 1)
+    {
+        _state = CONNECTED;
+        return true;
+    }
+
+    checkSslOperation(ret, "SSL_shutdown", _pfd);
+    return false;
+}
+
+void TcpSocketImpl::endSslShutdown()
+{
+    log_trace("ending ssl accept");
+
+    if (_pfd && !_socket.wbuf())
+        _pfd->events &= ~POLLOUT;
+
+    if (_state == CONNECTED)
+        return;
+
+    if (_state != SSLSHUTTINGDOWN)
+        throw std::logic_error("Device not in ssl shutdown mode when trying to finish ssl");
+
+    while (true)
+    {
+        log_debug("SSL_shutdown");
+        int ret = SSL_shutdown(_ssl);
+        if (ret == 1)
+        {
+            _state = CONNECTED;
+            SSL* ssl = _ssl;
+            _ssl = 0;
+            SSL_clear(ssl);
+            checkSslError();
+            return;
+        }
+
+        waitSslOperation(ret);
+    }
+}
+
+#endif // WITH_SSL
 } // namespace net
 
 } // namespace cxxtools

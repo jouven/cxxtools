@@ -34,8 +34,6 @@
 #include <cxxtools/log.h>
 #include <cxxtools/net/tcpserver.h>
 
-#include <signal.h>
-
 log_define("cxxtools.http.server.impl")
 
 namespace cxxtools
@@ -163,6 +161,12 @@ void ServerImpl::listen(const std::string& ip, unsigned short int port, int back
         delete listener;
         throw;
     }
+}
+
+void ServerImpl::loadSslCertificateFile(const std::string& certificateFile, const std::string& privateKeyFile)
+{
+    _certificateFile = certificateFile;
+    _privateKeyFile = privateKeyFile;
 }
 
 void ServerImpl::start()

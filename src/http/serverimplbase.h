@@ -29,7 +29,6 @@
 #ifndef CXXTOOLS_HTTP_SERVERIMPLBASE_H
 #define CXXTOOLS_HTTP_SERVERIMPLBASE_H
 
-#include <cxxtools/noncopyable.h>
 #include <cxxtools/http/server.h>
 #include <cxxtools/timespan.h>
 #include "mapper.h"
@@ -42,8 +41,16 @@ class EventLoopBase;
 namespace http
 {
 
-class ServerImplBase : private NonCopyable
+class ServerImplBase
 {
+#if __cplusplus >= 201103L
+        ServerImplBase(const ServerImplBase&) = delete;
+        ServerImplBase& operator=(const ServerImplBase&) = delete;
+#else
+        ServerImplBase(const ServerImplBase&) { }
+        ServerImplBase& operator=(const ServerImplBase&) { return *this; }
+#endif
+
     public:
         ServerImplBase(EventLoopBase& eventLoop, Signal<Server::Runmode>& runmodeChanged)
             : _eventLoop(eventLoop),
@@ -59,6 +66,7 @@ class ServerImplBase : private NonCopyable
         virtual ~ServerImplBase() { }
 
         virtual void listen(const std::string& ip, unsigned short int port, int backlog) = 0;
+        virtual void loadSslCertificateFile(const std::string& certificateFile, const std::string& privateKeyFile) = 0;
 
         void addService(const std::string& url, Service& service)
         { _mapper.addService(url, service); }

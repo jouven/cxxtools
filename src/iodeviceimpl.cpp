@@ -207,7 +207,8 @@ size_t IODeviceImpl::read( char* buffer, size_t count, bool& eof )
 
         if(ret > 0)
         {
-            log_debug("::read(" << _fd << ", " << count << ") returned " << ret << " => \"" << hexDump(buffer, ret) << '"');
+            log_debug("::read(" << _fd << ", " << count << ") returned " << ret);
+            log_finer(HexDump(buffer, ret));
             break;
         }
 
@@ -244,7 +245,9 @@ size_t IODeviceImpl::read( char* buffer, size_t count, bool& eof )
 
 size_t IODeviceImpl::beginWrite(const char* buffer, size_t n)
 {
-    log_debug("::write(" << _fd << ", \"" << hexDump(buffer, n) << "\", " << n << ')');
+    log_debug("::write(" << _fd << ", buffer, " << n << ')');
+    log_finer(HexDump(buffer, n));
+
     ssize_t ret = ::write(_fd, (const void*)buffer, n);
 
     log_debug("write returned " << ret);
@@ -254,10 +257,8 @@ size_t IODeviceImpl::beginWrite(const char* buffer, size_t n)
     if (ret == 0 || errno == ECONNRESET || errno == EPIPE)
         throw IOError("lost connection to peer");
 
-    if(_pfd)
-    {
+    if (_pfd)
         _pfd->events |= POLLOUT;
-    }
 
     return 0;
 }
@@ -294,6 +295,7 @@ size_t IODeviceImpl::write( const char* buffer, size_t count )
     while(true)
     {
         log_debug("::write(" << _fd << ", buffer, " << count << ')');
+        log_finer(HexDump(buffer, count));
 
         ret = ::write(_fd, (const void*)buffer, count);
         log_debug("write returned " << ret);
@@ -491,8 +493,7 @@ bool IODeviceImpl::checkPollEvent(pollfd& pfd)
 
     if( _device.wavail() > 0 || (pfd.revents & POLLOUT_MASK) )
     {
-        log_debug("send signal outputReady");
-        _device.outputReady(_device);
+        outputReady();
         avail = true;
     }
 
@@ -501,12 +502,24 @@ bool IODeviceImpl::checkPollEvent(pollfd& pfd)
 
     if( pfd.revents & POLLIN_MASK )
     {
-        log_debug("send signal inputReady");
-        _device.inputReady(_device);
+        inputReady();
         avail = true;
     }
 
     return avail;
 }
+
+void IODeviceImpl::inputReady()
+{
+    log_debug("send signal inputReady");
+    _device.inputReady(_device);
+}
+
+void IODeviceImpl::outputReady()
+{
+    log_debug("send signal outputReady");
+    _device.outputReady(_device);
+}
+
 
 }

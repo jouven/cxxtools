@@ -47,13 +47,15 @@ namespace cxxtools
                 friend class Responder;
 
             public:
-                RpcServer(EventLoopBase& eventLoop);
+                explicit RpcServer(EventLoopBase& eventLoop);
                 RpcServer(EventLoopBase& eventLoop, const std::string& ip, unsigned short int port, int backlog = 64);
                 RpcServer(EventLoopBase& eventLoop, unsigned short int port, int backlog = 64);
                 ~RpcServer();
 
                 void listen(const std::string& ip, unsigned short int port, int backlog = 64);
                 void listen(unsigned short int port, int backlog = 64);
+
+                void loadSslCertificateFile(const std::string& certificateFile, const std::string& privateKeyFile = std::string());
 
                 void addService(const std::string& praefix, const ServiceRegistry& service);
 

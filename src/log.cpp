@@ -792,13 +792,13 @@ namespace cxxtools
     public:
       typedef Logger::log_level_type log_level_type;
 
-      Impl()
+      explicit Impl(int rootFlags)
         : _maxfilesize(0),
           _maxbackupindex(0),
           _logport(0),
           _broadcast(true),
           _tostdout(false),
-          _rootFlags(Logger::LOG_LEVEL_FATAL)
+          _rootFlags(rootFlags)
       { }
 
       const std::string& fname() const          { return _fname; }
@@ -811,7 +811,7 @@ namespace cxxtools
 
       int rootFlags() const                     { return _rootFlags; }
       int logFlags(const std::string& category) const;
-      const LogFlags& logLevels() const        { return _logFlags; }
+      const LogFlags& logLevels() const         { return _logFlags; }
 
       void setRootFlags(int flags)
       {
@@ -1034,7 +1034,7 @@ namespace cxxtools
   }
 
   LogConfiguration::LogConfiguration()
-    : _impl(new LogConfiguration::Impl())
+    : _impl(new LogConfiguration::Impl(0))
   {
   }
 
@@ -1182,6 +1182,9 @@ namespace cxxtools
 
   void LogManager::Impl::configure(const LogConfiguration& config)
   {
+    if (config.rootFlags() == 0)
+      return;
+
     if (config.impl()->fname().empty())
     {
       if (config.impl()->logport() != 0)

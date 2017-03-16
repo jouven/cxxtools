@@ -29,17 +29,16 @@
 #ifndef CXXTOOLS_JSON_RPCSERVERIMPL_H
 #define CXXTOOLS_JSON_RPCSERVERIMPL_H
 
-#include <map>
-#include <set>
-#include <vector>
-#include <cxxtools/noncopyable.h>
+#include <cxxtools/json/rpcserver.h>
 #include <cxxtools/event.h>
 #include <cxxtools/mutex.h>
 #include <cxxtools/condition.h>
 #include <cxxtools/queue.h>
 #include <cxxtools/signal.h>
 #include <cxxtools/connectable.h>
-#include <cxxtools/json/rpcserver.h>
+
+#include <set>
+#include <vector>
 
 namespace cxxtools
 {
@@ -62,14 +61,29 @@ namespace cxxtools
         class ThreadTerminatedEvent;
         class ActiveSocketEvent;
 
-        class RpcServerImpl : private NonCopyable, public Connectable
+        class RpcServerImpl : public Connectable
         {
+#if __cplusplus >= 201103L
+                RpcServerImpl(const RpcServerImpl&) = delete;
+                RpcServerImpl& operator=(const RpcServerImpl&) = delete;
+#else
+                RpcServerImpl(const RpcServerImpl&) { }
+                RpcServerImpl& operator=(const RpcServerImpl&) { return *this; }
+#endif
+
             public:
                 RpcServerImpl(EventLoopBase& eventLoop, Signal<RpcServer::Runmode>& runmodeChanged, ServiceRegistry& serviceRegistry);
 
                 ~RpcServerImpl();
 
                 void listen(const std::string& ip, unsigned short int port, int backlog);
+
+                void loadSslCertificateFile(const std::string& certificateFile, const std::string& privateKeyFile);
+
+                const std::string& certificateFile() const
+                { return _certificateFile; }
+                const std::string& privateKeyFile() const
+                { return _privateKeyFile; }
 
                 unsigned minThreads() const
                 { return _minThreads; }
@@ -137,6 +151,8 @@ namespace cxxtools
                 bool isTerminating() const
                 { return runmode() == RpcServer::Terminating; }
 
+                std::string _certificateFile;
+                std::string _privateKeyFile;
         };
     }
 }

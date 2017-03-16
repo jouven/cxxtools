@@ -3,7 +3,7 @@ noinst_HEADERS = \
 
 noinst_PROGRAMS = \
 	arg \
-	arg-set cgi \
+	arg-set \
 	commandoutput \
 	cxxlog \
 	deserialization \
@@ -38,6 +38,7 @@ noinst_PROGRAMS = \
 	rpcechoclient \
 	rpcparallelecho \
 	rpcserver \
+	saml2 \
 	serialization \
 	signals \
 	splitter \
@@ -51,7 +52,6 @@ noinst_PROGRAMS = \
 
 arg_set_SOURCES = arg-set.cpp
 arg_SOURCES = arg.cpp
-cgi_SOURCES = cgi.cpp
 commandoutput_SOURCES = commandoutput.cpp
 cxxlog_SOURCES = cxxlog.cpp
 deserialization_SOURCES = deserialization.cpp
@@ -87,6 +87,7 @@ rpcasyncaddclient_SOURCES = rpcasyncaddclient.cpp
 rpcechoclient_SOURCES = rpcechoclient.cpp
 rpcparallelecho_SOURCES = rpcparallelecho.cpp
 rpcserver_SOURCES = rpcserver.cpp
+saml2_SOURCES = saml2.cpp
 serialization_SOURCES = serialization.cpp
 signals_SOURCES = signals.cpp
 splitter_SOURCES = splitter.cpp
@@ -128,7 +129,7 @@ xmlmsgclient_LDADD = $(XMLRPC_LIBS)
 xmlmsgserver_LDADD = $(XMLRPC_LIBS)
 
 log.xml:
-	/bin/sh $(top_builddir)/cxxtools-config --logxml cxxtools >$@
+	$(AM_V_GEN)$(SHELL) $(top_builddir)/cxxtools-config --logxml cxxtools >$@
 
 noinst_DATA = log.xml
 CLEANFILES = log.xml
