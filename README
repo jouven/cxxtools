@@ -11,10 +11,10 @@ Then make:
 make "LDFLAGS=-lws2_32 -no-undefined"
 
 #cygwin (windows host)
- ./configure "CXXFLAGS=-O2 -std=c++11" --without-ssl
+./configure "CXXFLAGS=-O2 -std=c++11" --without-ssl
 
 Then make:
- make "LDFLAGS= -no-undefined"
+make "LDFLAGS= -no-undefined"
 
 
 Caveats:
