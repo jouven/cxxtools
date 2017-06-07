@@ -54,7 +54,7 @@ namespace bin
             void read(std::istream& in);
 
             /// Initialize the binary deserializer to receive data.
-            void begin();
+            void begin(bool resetDictionary = true);
 
             /// Process one more character.
             /// Returns  true, if the characters indicates the end of data.

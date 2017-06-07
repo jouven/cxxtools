@@ -31,7 +31,7 @@
 #include "cxxtools/serializationinfo.h"
 #include "cxxtools/bin/bin.h"
 #include "cxxtools/log.h"
-#include "cxxtools/hdstream.h"
+#include "cxxtools/hexdump.h"
 #include <limits>
 #include <stdint.h>
 #include <config.h>
@@ -123,6 +123,8 @@ class BinSerializerTest : public cxxtools::unit::TestSuite
             registerMethod("testComplexObject", *this, &BinSerializerTest::testComplexObject);
             registerMethod("testObjectVector", *this, &BinSerializerTest::testObjectVector);
             registerMethod("testBinaryData", *this, &BinSerializerTest::testBinaryData);
+            registerMethod("testReuse", *this, &BinSerializerTest::testReuse);
+            registerMethod("testNamedVector", *this, &BinSerializerTest::testNamedVector);
         }
 
         void testScalar()
@@ -195,7 +197,7 @@ class BinSerializerTest : public cxxtools::unit::TestSuite
             double result = 0.0;
             data >> cxxtools::bin::Bin(result);
 
-            log_debug("test double value " << value << " => " << cxxtools::hexDump(data.str()) << " => " << result);
+            log_debug("test double value " << value << " =>\n" << cxxtools::hexDump(data.str()) << "\n=> " << result);
 
             if (value != value) // check for nan
                 CXXTOOLS_UNIT_ASSERT(result != result);
@@ -245,7 +247,7 @@ class BinSerializerTest : public cxxtools::unit::TestSuite
             intvector.push_back(-257);
 
             data << cxxtools::bin::Bin(intvector);
-            log_debug("intvector: " << cxxtools::hexDump(data.str()));
+            log_debug("intvector:\n" << cxxtools::hexDump(data.str()));
 
             std::vector<int> intvector2;
             data >> cxxtools::bin::Bin(intvector2);
@@ -269,7 +271,7 @@ class BinSerializerTest : public cxxtools::unit::TestSuite
             obj.nullValue = true;
 
             data << cxxtools::bin::Bin(obj);
-            log_debug("bindata testobject: " << cxxtools::hexDump(data.str()));
+            log_debug("bindata testobject:\n" << cxxtools::hexDump(data.str()));
 
             TestObject obj2;
             data >> cxxtools::bin::Bin(obj2);
@@ -304,7 +306,7 @@ class BinSerializerTest : public cxxtools::unit::TestSuite
             v.push_back(obj);
 
             data << cxxtools::bin::Bin(v);
-            log_debug("bindata complex object: " << cxxtools::hexDump(data.str()));
+            log_debug("bindata complex object:\n" << cxxtools::hexDump(data.str()));
 
             std::vector<TestObject2> v2;
             data >> cxxtools::bin::Bin(v2);
@@ -375,6 +377,96 @@ class BinSerializerTest : public cxxtools::unit::TestSuite
             CXXTOOLS_UNIT_ASSERT(v == v2);
 
         }
+
+        void testReuse();
+        void testNamedVector();
 };
+
+void BinSerializerTest::testReuse()
+{
+    cxxtools::bin::Deserializer d;
+
+    {
+        std::stringstream data;
+        cxxtools::SerializationInfo si;
+        si.addMember("foo") <<= "bar";
+        data << cxxtools::bin::Bin(si);
+
+        d.read(data);
+
+        cxxtools::SerializationInfo si2;
+        d.deserialize(si2);
+
+        std::string bar;
+        CXXTOOLS_UNIT_ASSERT_EQUALS(si2.memberCount(), 1);
+        CXXTOOLS_UNIT_ASSERT_NOTHROW(si2.getMember("foo") >>= bar);
+        CXXTOOLS_UNIT_ASSERT_EQUALS(bar, "bar");
+    }
+
+    {
+        std::stringstream data;
+        cxxtools::SerializationInfo si;
+        si.addMember("bar").addMember("bar") <<= 42;
+        data << cxxtools::bin::Bin(si);
+
+        d.read(data);
+
+        cxxtools::SerializationInfo si2;
+        d.deserialize(si2);
+
+        int bar;
+        CXXTOOLS_UNIT_ASSERT_EQUALS(si2.memberCount(), 1);
+        CXXTOOLS_UNIT_ASSERT_NOTHROW(si2.getMember("bar").getMember("bar") >>= bar);
+        CXXTOOLS_UNIT_ASSERT_EQUALS(bar, 42);
+    }
+
+}
+
+namespace foo
+{
+    typedef std::vector<int> FooVector;
+
+    void operator<<= (cxxtools::SerializationInfo& si, const FooVector& iv)
+    {
+        cxxtools::operator<<= (si, iv);
+        si.setTypeName("FooVector");
+    }
+
+    struct Foo
+    {
+        FooVector data;
+    };
+
+    void operator<<= (cxxtools::SerializationInfo& si, const Foo& foo)
+    {
+        si.addMember("data") <<= foo.data;
+        si.setTypeName("Foo");
+    }
+
+    void operator>>= (const cxxtools::SerializationInfo& si, Foo& foo)
+    {
+        si.getMember("data") >>= foo.data;
+    }
+}
+
+void BinSerializerTest::testNamedVector()
+{
+    foo::Foo f;
+    f.data.push_back(42);
+    f.data.push_back(12);
+
+    std::stringstream data;
+    data << cxxtools::bin::Bin(f);
+
+    log_debug("named foovector:\n" << cxxtools::hexDump(data.str()));
+
+    foo::Foo f2;
+    cxxtools::bin::Deserializer d(data);
+    d.deserialize(f2);
+
+    CXXTOOLS_UNIT_ASSERT_EQUALS(f2.data.size(), 2);
+    CXXTOOLS_UNIT_ASSERT_EQUALS(f2.data[0], 42);
+    CXXTOOLS_UNIT_ASSERT_EQUALS(f2.data[1], 12);
+}
 
 cxxtools::unit::RegisterTest<BinSerializerTest> register_BinSerializerTest;

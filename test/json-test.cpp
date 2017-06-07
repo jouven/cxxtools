@@ -31,7 +31,7 @@
 #include "cxxtools/serializationinfo.h"
 #include "cxxtools/json.h"
 #include "cxxtools/log.h"
-#include "cxxtools/hdstream.h"
+#include "cxxtools/hexdump.h"
 #include <limits>
 #include <stdint.h>
 #include <config.h>
@@ -118,6 +118,7 @@ class JsonTest : public cxxtools::unit::TestSuite
             registerMethod("testScalar", *this, &JsonTest::testScalar);
             registerMethod("testInt", *this, &JsonTest::testInt);
             registerMethod("testDouble", *this, &JsonTest::testDouble);
+            registerMethod("testNan", *this, &JsonTest::testNan);
             registerMethod("testArray", *this, &JsonTest::testArray);
             registerMethod("testObject", *this, &JsonTest::testObject);
             registerMethod("testComplexObject", *this, &JsonTest::testComplexObject);
@@ -214,6 +215,25 @@ class JsonTest : public cxxtools::unit::TestSuite
         {
             testDoubleValue(3.14159);
             testDoubleValue(-3.877e-12);
+        }
+
+        void testNan()
+        {
+            {
+                std::ostringstream data;
+                data << cxxtools::Json(std::numeric_limits<float>::quiet_NaN());
+                CXXTOOLS_UNIT_ASSERT_EQUALS(data.str(), "null");
+            }
+            {
+                std::ostringstream data;
+                data << cxxtools::Json(std::numeric_limits<double>::quiet_NaN());
+                CXXTOOLS_UNIT_ASSERT_EQUALS(data.str(), "null");
+            }
+            {
+                std::ostringstream data;
+                data << cxxtools::Json(std::numeric_limits<long double>::quiet_NaN());
+                CXXTOOLS_UNIT_ASSERT_EQUALS(data.str(), "null");
+            }
         }
 
         void testArray()
@@ -337,7 +357,7 @@ class JsonTest : public cxxtools::unit::TestSuite
                 v.push_back(static_cast<char>(n));
 
             data << cxxtools::Json(v);
-            log_debug("v.data=" << cxxtools::hexDump(data.str()));
+            log_debug("v.data:\n" << cxxtools::hexDump(data.str()));
 
             std::string v2;
             data >> cxxtools::Json(v2);
@@ -351,7 +371,7 @@ class JsonTest : public cxxtools::unit::TestSuite
                 v.push_back(static_cast<char>(n));
 
             data << cxxtools::Json(v);
-            log_debug("v.data=" << cxxtools::hexDump(data.str()));
+            log_debug("v.data:\n" << cxxtools::hexDump(data.str()));
 
             data >> cxxtools::Json(v2);
 

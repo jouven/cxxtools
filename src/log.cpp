@@ -64,6 +64,7 @@
 #include "fcntlMingw.h"
 #include "time.h"
 #endif
+log_define("cxxtools.log")
 namespace cxxtools
 {
   namespace
@@ -519,6 +520,15 @@ namespace cxxtools
 
     void RollingFileAppender::doRotate()
     {
+      if (log_info_enabled())
+      {
+        std::string msg;
+        logentry(msg, "INFO", "cxxtools.log");
+        msg += "rotate file";
+        FileAppender::putMessage(msg);
+        finish(true);
+      }
+
       closeFile();
 
       // ignore unlink- and rename-errors. In case of failure the

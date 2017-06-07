@@ -42,17 +42,24 @@ class Deserializer;
 
 class Parser
 {
+#if __cplusplus >= 201103L
+        Parser(const Parser&) = delete;
+        Parser& operator= (const Parser&) = delete;
+#else
         Parser(const Parser&) { }
         Parser& operator= (const Parser&) { return *this; }
+#endif
 
         explicit Parser(std::vector<std::string>* dictionary)
-            : _next(0),
+            : _deserializer(0),
+              _next(0),
               _dictionary(dictionary)
         { }
 
     public:
         Parser()
-            : _next(0),
+            : _deserializer(0),
+              _next(0),
               _dictionary(&_mydictionary)
         { }
 
@@ -61,7 +68,7 @@ class Parser
             delete _next;
         }
 
-        void begin(Deserializer& handler);
+        void begin(Deserializer& handler, bool resetDictionary = true);
 
         void finish();
 
