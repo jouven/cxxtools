@@ -90,13 +90,9 @@ void IODeviceImpl::open(const std::string& path, IODevice::OpenMode mode, bool i
     {
         flags |= O_RDONLY;
     }
-    #ifdef __MINGW32__
-    if(mode & IODevice::Async)
-       flags |= FIONBIO;
-    #else
     if(mode & IODevice::Async)
         flags |= O_NONBLOCK;
-    #endif
+    
     if(mode & IODevice::Trunc)
         flags |= O_TRUNC;
 
@@ -125,7 +121,6 @@ void IODeviceImpl::open(const std::string& path, IODevice::OpenMode mode, bool i
 void IODeviceImpl::open(int fd, bool isAsync, bool inherit)
 {
     _fd = fd;
-    #ifndef __MINGW32__
     if (isAsync)
     {
         int flags = fcntl(_fd, F_GETFL);
@@ -137,7 +132,6 @@ void IODeviceImpl::open(int fd, bool isAsync, bool inherit)
                 throw IOError(getErrnoString("fcntl(O_NONBLOCK)"));
         }
     }
-    #endif
     if (!inherit)
     {
         int flags = fcntl(_fd, F_GETFD);
@@ -349,13 +343,9 @@ void IODeviceImpl::cancel()
 
 void IODeviceImpl::sync() const
 {
-//    #ifdef __MINGW32__
-//   int ret = fsync(_fd);
-//    #else
-//    int ret = fsync(_fd);
-//    #endif
-//    if(ret != 0)
-//        throw IOError(getErrnoString("Could not sync handle"));
+    int ret = fsync(_fd);
+    if(ret != 0)
+        throw IOError(getErrnoString("Could not sync handle"));
 }
 
 

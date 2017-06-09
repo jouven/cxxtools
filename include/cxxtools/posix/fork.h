@@ -89,7 +89,7 @@ namespace cxxtools
         void fork()
         {
           #ifdef __MINGW32__
-          throw std::runtime_error("Mingw porting, Not implemented yet.");
+          throw std::runtime_error("Mingw port, Not implemented yet.");
           #else
           pid = ::fork();
           #endif
@@ -105,7 +105,7 @@ namespace cxxtools
         {
           int status;
           #ifdef __MINGW32__
-          throw std::runtime_error("Mingw porting, Not implemented yet.");
+          throw std::runtime_error("Mingw port, Not implemented yet.");
           #else
           ::waitpid(pid, &status, options);
           #endif

@@ -32,7 +32,7 @@
 
 #include <string>
 #include <sys/types.h>
-#include <regex>
+#include <regex.h>
 #include <cxxtools/smartptr.h>
 
 namespace cxxtools
@@ -42,23 +42,23 @@ namespace cxxtools
   template <typename objectType>
   class RegexDestroyPolicy;
 
-  template<>
-  class RegexDestroyPolicy<std::regex>
+  template <>
+  class RegexDestroyPolicy<regex_t>
   {
     protected:
-      void destroy(std::regex* expr)
+      void destroy(regex_t* expr)
       {
-        //::regfree(expr);
-        ::operator delete(expr);
+        ::regfree(expr);
+        delete expr;
       }
   };
 
   /// regex(3)-wrapper.
   class Regex
   {
-      SmartPtr<std::regex, ExternalRefCounted, RegexDestroyPolicy> expr;
+      SmartPtr<regex_t, ExternalRefCounted, RegexDestroyPolicy> expr;
 
-      //void checkerr(int ret) const;
+      void checkerr(int ret) const;
 
     public:
       /// create a uninitialized regex object.
@@ -66,34 +66,24 @@ namespace cxxtools
       { }
 
       /// create a regex object with a const char*.
-      explicit Regex(const char* ex, std::regex_constants::syntax_option_type cflags = std::regex::extended)
+      explicit Regex(const char* ex, int cflags = REG_EXTENDED)
         : expr(0)
       {
         if (ex && ex[0])
         {
-          try
-          {
-            expr = new std::regex(ex, cflags);
-          } catch (const std::regex_error& e)
-          {
-            throw e;
-          }
+          expr = new regex_t();
+          checkerr(::regcomp(expr.getPointer(), ex, cflags));
         }
       }
 
       /// create a regex object with std::string.
-      explicit Regex(const std::string& ex, std::regex_constants::syntax_option_type cflags = std::regex::extended)
+      explicit Regex(const std::string& ex, int cflags = REG_EXTENDED)
         : expr(0)
       {
         if (!ex.empty())
         {
-          try
-          {
-             expr = new std::regex(ex, cflags);
-          } catch (const std::regex_error& e)
-          {
-            throw e;
-          }
+          expr = new regex_t();
+          checkerr(::regcomp(expr.getPointer(), ex.c_str(), cflags));
         }
       }
 
@@ -128,23 +118,26 @@ namespace cxxtools
       friend class Regex;
 
       std::string str;
-      std::smatch matchbuf;
+      regmatch_t matchbuf[10];
 
     public:
-      RegexSMatch() = default;
+      RegexSMatch()
+      {
+        matchbuf[0].rm_so = 0;
+      }
 
       /// returns the number of expressions, which were found
       unsigned size() const;
       /// returns the start position of the n-th expression
-      int_fast32_t offsetBegin(unsigned n) const   { return matchbuf.position(n); }
+      regoff_t offsetBegin(unsigned n) const   { return matchbuf[n].rm_so; }
       /// returns the end position of the n-th expression
-      int_fast32_t offsetEnd(unsigned n) const     { return matchbuf.position(n) + matchbuf.length(n); }
+      regoff_t offsetEnd(unsigned n) const     { return matchbuf[n].rm_eo; }
       /// returns the size of the n-th expression
-      int_fast32_t size(unsigned n) const     { return matchbuf.length(n); }
+      regoff_t size(unsigned n) const     { return matchbuf[n].rm_eo - matchbuf[n].rm_so; }
 
       /// returns true if the n-th element is set.
       bool has(unsigned n) const
-        { return matchbuf.size() <  n; }
+        { return matchbuf[n].rm_so >= 0; }
       /// returns the n-th element. No range checking is done.
       std::string get(unsigned n) const;
       /// replace each occurence of "$n" with the n-th element (n: 0..9).
@@ -157,4 +150,3 @@ namespace cxxtools
 }
 
 #endif // CXXTOOLS_REGEX_H
-

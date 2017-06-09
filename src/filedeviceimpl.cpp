@@ -34,6 +34,9 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
+#ifdef __MINGW32__
+    #include "fsync.h"
+#endif
 
 namespace cxxtools
 {

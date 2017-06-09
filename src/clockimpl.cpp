@@ -25,10 +25,7 @@
  */
 #include "clockimpl.h"
 #include <time.h>
-#ifdef __MINGW32__
-#else
-  #include <sys/time.h>
-#endif
+#include <sys/time.h>
 
 namespace cxxtools
 {
@@ -82,11 +79,8 @@ DateTime ClockImpl::getSystemTime()
 
     struct tm tim;
     time_t sec = tod.tv_sec;
-#ifdef __MINGW32__
-    gmtime_s(&tim, &sec);
-#else
+
     gmtime_r(&sec, &tim);
-#endif
 
     return DateTime( tim.tm_year + 1900,
                      tim.tm_mon + 1,
@@ -106,11 +100,8 @@ DateTime ClockImpl::getLocalTime()
 
     struct tm tim;
     time_t sec = tod.tv_sec;
-#ifdef __MINGW32__
-    localtime_s(&tim, &sec);
-#else
+
     localtime_r(&sec, &tim);
-#endif
 
     return DateTime( tim.tm_year + 1900,
                      tim.tm_mon + 1,

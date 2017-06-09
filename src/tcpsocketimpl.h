@@ -42,10 +42,14 @@
 #ifdef __MINGW32__
 
 #else
-  #include <openssl/ssl.h>
   #include <sys/socket.h>
   #include <sys/poll.h>
   #include <netinet/in.h>
+#endif
+
+#ifdef WITH_SSL
+  #include <openssl/err.h>
+  #include <openssl/ssl.h>
 #endif
 
 #include <sys/time.h>

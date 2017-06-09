@@ -29,11 +29,7 @@
 #include "cxxtools/systemerror.h"
 #include <sys/stat.h>
 #include <sys/types.h>
-#ifdef __MINGW32__
-#include <direct.h>
-#else
 #include <dirent.h>
-#endif
 #include <unistd.h>
 #include <errno.h>
 #include <stdio.h>
@@ -154,7 +150,7 @@ bool DirectoryIteratorImpl::advance()
 void DirectoryImpl::create(const std::string& path)
 {
 #ifdef __MINGW32__
-    if( -1 == _mkdir(path.c_str()) )
+    if( -1 == ::mkdir(path.c_str()) )
 #else
     if( -1 == ::mkdir(path.c_str(), 0777) )
 #endif

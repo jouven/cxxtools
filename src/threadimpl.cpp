@@ -33,9 +33,12 @@
 #include <signal.h>
 #include <unistd.h>
 #include <iostream>
+#include <time.h>
 #ifdef __MINGW32__
+//makes no sense because it should be declared on signal.h
 #define SIGKILL 9
 #endif
+
 
 extern "C"
 {
@@ -141,7 +144,7 @@ void ThreadImpl::terminate()
 
 void ThreadImpl::sleep(const Timespan& t)
 {
-#if defined HAVE_NANOSLEEP && !defined __MINGW32__
+#if defined HAVE_NANOSLEEP
 
 
     struct timespec ts;

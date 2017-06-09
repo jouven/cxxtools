@@ -45,10 +45,10 @@
 #define WIN32_LEAN_AND_MEAN
 #include <io.h>
 #include <windows.h>
+#else
+    #include "poll.h"
 #endif
-#ifdef HAVE_PPOLL
-#include "poll.h"
-#endif
+
 
 log_define("cxxtools.selector.impl")
 
@@ -70,34 +70,19 @@ SelectorImpl::SelectorImpl()
     #endif
         throwSystemError("pipe");
 
-    #ifdef __MINGW32__
-    int flags = fcntl(_wakePipe[0], F_GETFL);
-    #else
     int flags = ::fcntl(_wakePipe[0], F_GETFL);
-    #endif
     if(-1 == flags)
         throwSystemError("fcntl");
 
-    #ifdef __MINGW32__
-    int ret = fcntl(_wakePipe[0], F_SETFL, flags|O_NONBLOCK);
-    #else
     int ret = ::fcntl(_wakePipe[0], F_SETFL, flags|O_NONBLOCK);
-    #endif
     if(-1 == ret)
         throwSystemError("fcntl");
 
-    #ifdef __MINGW32__
-    flags = fcntl(_wakePipe[1], F_GETFL);
-    #else
     flags = ::fcntl(_wakePipe[1], F_GETFL);
-    #endif
     if(-1 == flags)
         throwSystemError("fcntl");
-    #ifdef __MINGW32__
-    ret = fcntl(_wakePipe[1], F_SETFL, flags|O_NONBLOCK);
-    #else
+
     ret = ::fcntl(_wakePipe[1], F_SETFL, flags|O_NONBLOCK);
-    #endif
     if(-1 == ret)
         throwSystemError("fcntl");
 

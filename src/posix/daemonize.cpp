@@ -73,7 +73,7 @@ void daemonize(const std::string& pidfile_)
   if (::freopen("/dev/null", "w", stderr) == 0)
     throw cxxtools::SystemError("freopen(stderr)");
   #ifdef __MINGW32__
-  throw std::runtime_error("Mingw porting, Not implemented yet.");
+  throw std::runtime_error("Mingw port, Not implemented yet.");
   #else
   if (::setsid() == -1)
     throw cxxtools::SystemError("setsid");

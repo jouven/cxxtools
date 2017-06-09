@@ -63,8 +63,6 @@
 #else
   #include <netinet/in.h>
   #include <arpa/inet.h>
-  #include <openssl/err.h>
-  #include <openssl/ssl.h>
 #endif
 #include <sstream>
 
@@ -86,7 +84,7 @@ namespace
             << ">: " << getErrnoString(err);
         return msg.str();
     }
-#ifndef __MINGW32__
+#ifdef WITH_SSL
     void checkSslError()
     {
         unsigned long code = ERR_get_error();
@@ -356,7 +354,7 @@ int TcpSocketImpl::checkConnect()
     #ifdef __MINGW32__
     if( ::getsockopt(this->fd(), SOL_SOCKET, SO_ERROR, (char*)&sockerr, &optlen) != 0 )
     #else
-    if( ::getsockopt(_fd(), SOL_SOCKET, SO_ERROR, &sockerr, &optlen) != 0 )
+    if( ::getsockopt(_fd, SOL_SOCKET, SO_ERROR, &sockerr, &optlen) != 0 )
     #endif
     {
         // getsockopt failed
@@ -701,22 +699,24 @@ size_t TcpSocketImpl::callSend(const char* buffer, size_t n)
     } while (ret == -1 && errno == EINTR);
 
 #else
-
+    #ifndef __MINGW32__
     // block SIGPIPE
-    #ifdef __MINGW32__
-    throw std::runtime_error("Mingw porting, Not implemented yet.");
-    #else
     sigset_t sigpipeMask, oldSigmask;
     sigemptyset(&sigpipeMask);
     sigaddset(&sigpipeMask, SIGPIPE);
     pthread_sigmask(SIG_BLOCK, &sigpipeMask, &oldSigmask);
-
+    #endif
     // execute send
     ssize_t ret;
     do {
+    #ifdef __MINGW32__
+        ret = ::send(_fd, (const char*)buffer, n, 0);
+    #else
         ret = ::send(_fd, (const void*)buffer, n, 0);
+    #endif
     } while (ret == -1 && errno == EINTR);
 
+    #ifndef __MINGW32__
     // clear possible SIGPIPE
     sigset_t pending;
     sigemptyset(&pending);
@@ -731,15 +731,15 @@ size_t TcpSocketImpl::callSend(const char* buffer, size_t n)
     // unblock SIGPIPE
     pthread_sigmask(SIG_SETMASK, &oldSigmask, 0);
     #endif
+
 #endif
-    #ifndef __MINGW32__
+
     log_debug("send returned " << ret);
     if (ret > 0)
         return static_cast<size_t>(ret);
 
     if (errno == ECONNRESET || errno == EPIPE)
         throw IOError("lost connection to peer");
-    #endif
 
     return 0;
 }

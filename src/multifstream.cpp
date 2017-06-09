@@ -38,7 +38,7 @@ multifstreambuf::multifstreambuf()
   : current(0)
 {
   #ifdef __MINGW32__
-  throw std::runtime_error("Mingw porting, Not implemented yet.");
+  throw std::runtime_error("Mingw port, Not implemented yet.");
   #else
   mglob.gl_pathv = 0;
   #endif
@@ -48,7 +48,7 @@ multifstreambuf::multifstreambuf(const char* pattern, int flags)
   : current(0)
 {
   #ifdef __MINGW32__
-  throw std::runtime_error("Mingw porting, Not implemented yet.");
+  throw std::runtime_error("Mingw port, Not implemented yet.");
   #else
   int ret = glob(pattern, flags, 0, &mglob);
 
@@ -62,7 +62,7 @@ multifstreambuf::multifstreambuf(const char* pattern, int flags)
 multifstreambuf::~multifstreambuf()
 {
   #ifdef __MINGW32__
-  throw std::runtime_error("Mingw porting, Not implemented yet.");
+  throw std::runtime_error("Mingw port, Not implemented yet.");
   #else
   if (mglob.gl_pathv)
     globfree(&mglob);
@@ -77,7 +77,7 @@ std::streambuf::int_type multifstreambuf::overflow(std::streambuf::int_type /*c*
 std::streambuf::int_type multifstreambuf::underflow()
 {
   #ifdef __MINGW32__
-  throw std::runtime_error("Mingw porting, Not implemented yet.");
+  throw std::runtime_error("Mingw port, Not implemented yet.");
   #else
   if (mglob.gl_pathv == 0 || mglob.gl_pathv[current] == 0)
     open_next();
@@ -108,7 +108,7 @@ bool multifstreambuf::open_next()
     file.close();
 
   #ifdef __MINGW32__
-  throw std::runtime_error("Mingw porting, Not implemented yet.");
+  throw std::runtime_error("Mingw port, Not implemented yet.");
   #else
   if (mglob.gl_pathv
    && mglob.gl_pathv[current + 1])

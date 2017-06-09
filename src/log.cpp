@@ -59,11 +59,10 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <pthread.h>
-
 #ifdef __MINGW32__
 #include "fcntlMingw.h"
-#include "time.h"
 #endif
+
 log_define("cxxtools.log")
 namespace cxxtools
 {
@@ -164,11 +163,9 @@ namespace cxxtools
       if (sec != psec)
       {
         struct tm tt;
-        #ifdef __MINGW32__
-        localtime_s(&tt, &sec);
-        #else
+
         localtime_r(&sec, &tt);
-        #endif
+
         int year = 1900 + tt.tm_year;
         int mon = tt.tm_mon + 1;
         date[0] = static_cast<char>('0' + year / 1000 % 10);
@@ -302,17 +299,9 @@ namespace cxxtools
       _fd = ::open( _fname.c_str(), O_WRONLY | O_APPEND | O_CREAT, 0666);
       if (_fd >= 0)
       {
-        #ifdef __MINGW32__
-        int flags = fcntl(_fd, F_GETFD);
-        #else
         int flags = ::fcntl(_fd, F_GETFD);
-        #endif
         flags |= FD_CLOEXEC;
-        #ifdef __MINGW32__
-        fcntl(_fd, F_SETFD, flags);
-        #else
         ::fcntl(_fd, F_SETFD, flags);
-        #endif
       }
 #endif
     }

@@ -29,12 +29,7 @@
 #include "cxxtools/datetime.h"
 #include "cxxtools/log.h"
 #include <stdexcept>
-
 #include <time.h>
-#ifdef __MINGW32__
-#else
-	#include <sys/time.h>
-#endif
 
 log_define("cxxtools.timer")
 
@@ -142,11 +137,9 @@ void Timer::start(const DateTime& startTime, const Milliseconds& interval)
     Timespan systemTime = Clock::getSystemTicks();
     struct tm tim;
     time_t sec = static_cast<time_t>(systemTime.totalSeconds());
-#ifdef __MINGW32__
-    localtime_s(&tim, &sec);
-#else
+
 	localtime_r(&sec, &tim);
-#endif
+
     DateTime now(tim.tm_year + 1900, tim.tm_mon + 1, tim.tm_mday,
                  tim.tm_hour, tim.tm_min, tim.tm_sec,
                  0, systemTime.totalUSecs() % 1000000);
@@ -245,11 +238,9 @@ bool Timer::update(const Milliseconds& now)
         {
             struct tm tim;
             time_t sec = static_cast<time_t>(currentTs.totalSeconds());
-#ifdef __MINGW32__
-            localtime_s(&tim, &sec);
-#else
+
             localtime_r(&sec, &tim);
-#endif
+
             DateTime dueTime(tim.tm_year + 1900, tim.tm_mon + 1, tim.tm_mday,
                  tim.tm_hour, tim.tm_min, tim.tm_sec,
                  0, currentTs.totalUSecs() % 1000000);
