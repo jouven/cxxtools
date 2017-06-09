@@ -9,7 +9,7 @@ Optional:
 Openssl library
 
 To compile the library follow the same steps as the regular cxxtools, but on the configure step use this line as a base (check your "distro"/"mingw" gcc and g++ installation calls first):
-./configure "CXXFLAGS=-D_WIN32_WINNT=0x0601 -O2" --host=x86_64-w64-mingw32 CXX=x86_64-w64-mingw32-g++ CC=x86_64-w64-mingw32-gcc"
+./configure "CXXFLAGS=-D_WIN32_WINNT=0x0601 -O2" --host=x86_64-w64-mingw32 CXX=x86_64-w64-mingw32-g++ CC=x86_64-w64-mingw32-gcc
 
 Then make (assuming there is openssl):
 make "LDFLAGS=-no-undefined -lcrypto -lws2_32 -lregex"
