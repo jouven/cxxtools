@@ -1,27 +1,22 @@
-A fork of https://github.com/maekitalo/cxxtools with "changes" to allow cross compile with mingw.
+A fork of https://github.com/maekitalo/cxxtools with "changes" to allow to compile with mingw.
 
-Requires https://github.com/dlfcn-win32/dlfcn-win32 (for mingw)
+Requires:
+dlfcn-win32
+A compatible "regex.h" (library)
+Compiler with C++11 support.
 
-To compile the library follow the same steps as the regular cxxtools, but on the configure step use this line as a base (check your distro/mingw installation calls first):
+Optional:
+Openssl library
 
-#mingw (linux host)
-./configure "CXXFLAGS=-O2 -std=c++11 -D_WIN32_WINNT=0x0601" --host=x86_64-w64-mingw32 CXX=x86_64-w64-mingw32-g++-posix CC=x86_64-w64-mingw32-gcc-posix --without-ssl
+To compile the library follow the same steps as the regular cxxtools, but on the configure step use this line as a base (check your "distro"/"mingw" gcc and g++ installation calls first):
+./configure "CXXFLAGS=-D_WIN32_WINNT=0x0601 -O2" --host=x86_64-w64-mingw32 CXX=x86_64-w64-mingw32-g++ CC=x86_64-w64-mingw32-gcc
 
-Then make:
-make "LDFLAGS=-lws2_32 -no-undefined"
-
-#cygwin (windows host)
-./configure "CXXFLAGS=-O2 -std=c++11" --without-ssl
-
-Then make:
-make "LDFLAGS= -no-undefined"
-
+Then make (assuming there is openssl):
+make "LDFLAGS=-no-undefined -lcrypto -lws2_32 -lregex"
 
 Caveats:
 1. Don't expect anything that uses POSIX stuff (pipes, sockets...) to work.
-2. The regex header/code uses <regex.h> (POSIX), I've attempted to modify it so it uses C++11 regex but I haven't tried/tested the changes at all, it just compiles.
-3. The previous caveat adds the requirement of C++11 support to compile.
-4. I've barely tested it, as far as I know it compiles, links and the programs run. I've only tried the JSON serialization/deserialization on wine/wine64/windows 7, which does work alright.
+2. I've barely tested it, as far as I know it compiles, links and the programs run. I've only tried the JSON serialization/deserialization on wine/wine64/windows 7, which does work alright.
 
 Warnings:
 1. When installing, if you install "make install", remember to change the installation location so the files install on the mingw folders or you might overwrite your regular cxxtools.
